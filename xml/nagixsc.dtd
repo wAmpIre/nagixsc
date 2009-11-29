@@ -1,0 +1,21 @@
+<!ELEMENT nagixsc (timestamp,host+)>
+<!ATTLIST nagixsc version CDATA #IMPLIED >
+
+<!ELEMENT timestamp (#PCDATA)>
+
+<!ELEMENT host (name,service+)>
+<!ATTLIST host encoding CDATA #IMPLIED >
+
+<!ELEMENT name (#PCDATA)>
+<!ATTLIST name encoding CDATA #IMPLIED >
+
+<!ELEMENT service (description,returncode,output,timestamp?)>
+
+<!ELEMENT description (#PCDATA)>
+<!ATTLIST description encoding CDATA #IMPLIED >
+
+<!ELEMENT returncode (#PCDATA)>
+
+<!ELEMENT output (#PCDATA)>
+<!ATTLIST output encoding CDATA #IMPLIED >
+

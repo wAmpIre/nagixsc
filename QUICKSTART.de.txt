@@ -1,0 +1,178 @@
+==========
+00. Inhalt
+==========
+
+- 01. Auf dem zu überwachenden Rechner
+- 02. Auf dem Nagios
+
+
+
+
+
+====================================
+01. Auf dem zu überwachenden Rechner
+====================================
+
+-----------------------------------
+01.01. Erstellen einer "conf"-Datei
+-----------------------------------
+
+Vorbemerkung:
+Zur Zeit wird ein INI-Datei ähnliches Format verwendet. Dies kann sich aber in
+Zukunft noch ändern!
+
+Als Vorlage können die Dateien "examples/nagixsc_debian.conf" (Nagios mit
+Hilfe der Debian-Packages installiert) und "examples/nagixsc_usrlocal.conf"
+(selbst kompiliert nach /usr/local/nagios) dienen.
+
+Je Rechner, der überwacht werden soll, wird ein Abschnitt in eckigen Klammern
+angelegt. Der Abschnittsname entspricht dabei dem Nagios-Hostname. Innerhalb
+des Abschnitts können nun die Service Descriptions und die auszuführenden
+Commands definiert werden.
+
+Beginnt eine Option mit einem Unterstrich/Underscore/"_", so sind dies
+Nag(ix)SC-interne Definitionen und werden NICHT als Service angesehen. Bisher
+gibt es folgende Definitionen:
+
+- "_host_name": Überschreibt den Abschnittsnamen mit dem angegebenen
+                Hostnamen.
+
+Der Abschnitt "[nagixsc]" ist für zukünftige Erweiterungen reserviert!
+
+
+----------------------------------------------------
+01.02. Ausführen der Checks, Erstellen der XML-Datei
+----------------------------------------------------
+
+Zum ersten Test lässt man sich das XML am Besten an der Konsole ausgeben:
+
+% ./nagixsc_conf2xml.py -e plain -c examples/nagixsc.conf
+
+Zur Lesbarkeit wird das Encoding ausgeschaltet ("-e plain"). Dies ist nicht
+für den Produktivbetrieb gedacht!
+
+Man sollte hier bereits erkennen, wie Nag(ix)SC "intern tickt". Jetzt wäre der
+geeignete Zeitpunkt sich eine kleine, eigene Konfigurationsdatei zu schreiben.
+;-)
+
+Hat man diese (zur Not geht's natürlich auch mit den Beispielen weiter),
+erstellt man nun ein XML, welches zur Weiterverarbeitung geeignet ist:
+
+% ./nagixsc_conf2xml.py --c examples/nagixsc.conf -o /tmp/nagixsc.xml
+
+In der Praxis kann man diese XML-Datei auf einen Web-Server legen, damit sie
+direkt vom Nagios aus abrufbar ist.
+
+
+-----------------------------------------
+01.03. Kontrolle der erstellten XML-Datei
+-----------------------------------------
+
+Mit Hilfe des Skripts "dummy_read_xml.py" kann man sich den Inhalt einer
+Nag(ix)SC-XML-Datei ansehen:
+
+% ./dummy_read_xml.py -f /tmp/nagixsc.xml
+
+Der Inhalt wird zuerst blockweise, dann als formatiertes Python Dict
+ausgegeben.
+
+
+
+
+
+==================
+02. Auf dem Nagios
+==================
+
+--------------------------------
+02.01. Verschiedene Übergabewege
+--------------------------------
+
+Auf der Nagios-Seite gibt es im Moment 2 Wege an die Check-Ergebnisse
+heranzukommen: Entweder man sorgt manuell dafür, dass die XML-Datei irgendwo
+im Dateisystem lesbar ist ("-f"), oder man greift auf einen Web-Server zu
+("-u"). Die Beispiele gehen von einer lokalen Datei aus.
+
+Das Tool "nagixsc_xml2nagios.py" kennt 5 verschiedene Arbeitsweisen, angegeben
+durch den Schalter "-O":
+
+- "passive": Schreibt die Ergebnisse als passive Service Checks in die Nagios
+             Command Pipe. Es generiert keine Ausgaben und ist daher für einen
+             Aufruf durch Cron geeignet.
+
+- "passive_check": Schreibt ebenfalls passive Service Checks, die Rückgabe
+                   erfolgt allerdings im Stil eines Nagios-Plugins (eine Zeile
+                   Ausgabe, Exit-Code).
+
+- "checkresult": Schreibt die Ergebnisse aus dem XML in das Nagios
+                 "checkresults"-Verzeichnis. Ebenfalls für Cron geeignet.
+
+- "checkresult_check": Siehe "checkresult", Verhalten wie ein Nagios-Plugin
+                       (eine Zeile Ausgabe, Exit-Code)
+
+- "active": Durchsucht ein XML nach einer Host/Service-Kombination und beendet
+            sich wie ein Nagios-Plugin mit den gefundenen Daten.
+
+Beispielaufrufe:
+
+% ./nagixsc_xml2nagios.py -O passive -f /tmp/nagixsc.xml
+%
+
+% ./nagixsc_xml2nagios.py -O passive_check -f /tmp/nagixsc.xml
+Nag(ix)SC OK - Check results are 25077576 seconds old
+%
+
+% ./nagixsc_xml2nagios.py -O checkresult -f /tmp/nagixsc.xml
+%
+
+% ./nagixsc_xml2nagios.py -O checkresult_check -f /tmp/nagixsc.xml
+Nag(ix)SC OK - Wrote checkresult files for 6 services
+%
+
+./nagixsc_xml2nagios.py -O active -f /tmp/nagixsc.xml -D Disk_Root
+DISK OK - free space: / 2167 MB (22% inode=97%);| /=7353MB;8568;9044;0;9520
+%
+
+Für einen selbstkompilierten Nagios und die Debian-Packages können die
+"nagios.cmd" und das "checkresults"-Verzeichnis automatische gefunden werden.
+Sollte dies nicht klappen, kann man sie mit "-p" (Pipe) bzw. "-r" (Resultdir)
+übergeben werden.
+
+Will man "erstmal nur testen", so kann man "nagix_xm2nagios.py" mit "touch
+/tmp/nagixsc.cmd" und "-p /tmp/nagixsc.cmd" bzw. "mkdir /tmp/nagixsc.result"
+und "-r /tmp/nagixsc.result" aufrufen und die generierten External Commands
+bzw. Checkresult-Dateien ansehen.
+
+
+----------------------
+02.02. Veraltete Daten
+----------------------
+
+"nagixsc_xml2nagios.py" geht davon aus, dass die Daten im XML nicht älter als
+vier Stunden (14400 Sekunden) sind. Sollten sie es dennoch sein, werden sie
+automatisch mit dem Text "Nag(ix)SC: Check result is XX(>1440) seconds old"
+gekennzeichnet. Dieses Verhalten kann mit zwei Optionen beeinflusst werden:
+
+- "-s SEC" gibt an, nach wie vielen Sekunden Nag(ix)SC davon ausgegen soll,
+           dass die Daten im XML veraltet sind und mit dem oben genannten
+           Hinweis versehen werden sollen.
+
+- "-m" sorgt dafür, dass nicht nur der Text ergänzt, sondern dass der Check im
+       Nagios als UNKNOWN geführt wird.
+
+
+------------------------
+02.03. Weitere Parameter
+------------------------
+
+- "-S": Teste die XML-Datei vor der Verarbeitung gegen die angegebene
+        DTD-Datei. Eine DTD wird als "xml/nagixsc.dtd" mitgeliefert (ohne
+        Gewähr ;-)
+
+- "-H": Filtert die XML-Datei nach einem Hostnamen und gibt nur dessen Checks
+        zurück. Kann mit allen Varianten kombiniert werden.
+
+- "-D": Filtert die XML-Datei nach einer (Service) Description. In Kombination
+        mit "-H" wird nach einer Host/Service-Kombination gesucht. Ist kein
+        Host angegeben, wird der erste Host in der XML-Datei genommen.
+

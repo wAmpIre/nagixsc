@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+
+<nagixsc version="1.0">
+	<timestamp>1234443430</timestamp>
+
+	<host>
+		<name encoding="plain">host1</name>
+
+		<service>
+			<description encoding="base64">RGlza19Ib21l</description>
+			<returncode>2</returncode>
+			<output encoding="base64">RElTSyBDUklUSUNBTCAtIGZyZWUgc3BhY2U6IC9ob21lIDc3NSBNQiAoMSUgaW5vZGU9OTElKTt8IC9ob21lPTY3NTg0TUI7NjE1MjM7NjQ5NDE7MDs2ODM1OQo=</output>
+			<timestamp>1234443420</timestamp>
+		</service>
+
+		<service>
+			<description encoding="base64">RGlza19Sb290</description>
+			<returncode>0</returncode>
+			<output encoding="base64">RElTSyBPSyAtIGZyZWUgc3BhY2U6IC8gMjE2NyBNQiAoMjIlIGlub2RlPTk3JSk7fCAvPTczNTNNQjs4NTY4OzkwNDQ7MDs5NTIwCg==</output>
+			<timestamp>1234443420</timestamp>
+		</service>
+
+		<service>
+			<description encoding="base64">TG9hZA==</description>
+			<returncode>0</returncode>
+			<output encoding="base64">T0sgLSBsb2FkIGF2ZXJhZ2U6IDAuMDAsIDAuMDAsIDAuMDB8bG9hZDE9MC4wMDA7NS4wMDA7MTAuMDAwOzA7IGxvYWQ1PTAuMDAwOzUuMDAwOzEwLjAwMDswOyBsb2FkMTU9MC4wMDA7NS4wMDA7MTAuMDAwOzA7IAo=</output>
+			<timestamp>1234443420</timestamp>
+		</service>
+
+	</host>
+
+
+	<host>
+		<name encoding="plain">host2</name>
+
+		<service>
+			<description encoding="base64">UHJvY3NfVG90YWw=</description>
+			<returncode>0</returncode>
+			<output encoding="base64">UFJPQ1MgT0s6IDE2MyBwcm9jZXNzZXMK</output>
+			<timestamp>1234443410</timestamp>
+		</service>
+
+		<service>
+			<description encoding="base64">U3dhcA==</description>
+			<returncode>0</returncode>
+			<output encoding="base64">U1dBUCBPSyAtIDc5JSBmcmVlICgxNDkyIE1CIG91dCBvZiAxOTA2IE1CKSB8c3dhcD0xNDkyTUI7OTUzOzQ3NjswOzE5MDYK</output>
+		</service>
+
+		<service>
+			<description encoding="base64">VXNlcnM=</description>
+			<returncode>1</returncode>
+			<output encoding="base64">VVNFUlMgV0FSTklORyAtIDExIHVzZXJzIGN1cnJlbnRseSBsb2dnZWQgaW4gfHVzZXJzPTExOzEwOzE1OzAKMyByb290IHNlc3Npb25zCjggbm9uLXJvb3Qgc2Vzc2lvbnM=</output>
+			<timestamp>1234443410</timestamp>
+		</service>
+
+	</host>
+
+
+</nagixsc>
+

@@ -1,0 +1,28 @@
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	<xsd:element name="nagixsc" minOccurs="1" maxOccurs="1">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="timestamp" type="xsd:long" minOccurs="1" maxOccurs="1" />
+
+				<xsd:element name="host" type="xsd:string" minOccurs="1" maxOccurs="unbounded">
+					<xsd:sequence>
+
+						<xsd:element name="service" type="xsd:string" minOccurs="1" maxOccurs="unbounded">
+							<xsd:sequence>
+								<xsd:element name="description" type="xsd:string" minOccurs="1" maxOccurs="1" />
+								<xsd:element name="returncode" type="xsd:string" minOccurs="1" maxOccurs="1" />
+								<xsd:element name="output" type="xsd:int" minOccurs="1" maxOccurs="1" />
+								<xsd:element name="timestamp" type="xsd:string" minOccurs="0" maxOccurs="1" />
+							</xsd:sequence>
+						</xsd:element>
+
+					</xsd:sequence>
+				</xsd:element>
+
+			</xsd:sequence>
+		</xsd:complexType>
+
+	</xsd:element>
+
+</xsd:schema>
+
