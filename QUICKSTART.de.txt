@@ -58,7 +58,7 @@ geeignete Zeitpunkt sich eine kleine, eigene Konfigurationsdatei zu schreiben.
 Hat man diese (zur Not geht's natürlich auch mit den Beispielen weiter),
 erstellt man nun ein XML, welches zur Weiterverarbeitung geeignet ist:
 
-% ./nagixsc_conf2xml.py --c examples/nagixsc.conf -o /tmp/nagixsc.xml
+% ./nagixsc_conf2xml.py -c examples/nagixsc.conf -o /tmp/nagixsc.xml
 
 In der Praxis kann man diese XML-Datei auf einen Web-Server legen, damit sie
 direkt vom Nagios aus abrufbar ist.
