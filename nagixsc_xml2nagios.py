@@ -143,6 +143,7 @@ for check in checks:
 # Next steps depend on mode, output results
 # MODE: passive
 if options.mode == 'passive' or options.mode == 'passive_check':
+	count_services = 0
 	# Prepare
 	if options.verb <= 2:
 		pipe = open(options.pipe, "w")
@@ -151,7 +152,13 @@ if options.mode == 'passive' or options.mode == 'passive_check':
 
 	# Output
 	for check in checks:
-		line = '[%s] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%s;%s' % (now, check['host_name'], check['service_description'], check['returncode'], check['output'].replace('\n', '\\n'))
+		count_services += 1
+		if check['service_description'] == None or check['service_description'] == '':
+			# Host check
+			line = '[%s] PROCESS_HOST_CHECK_RESULT;%s;%s;%s' % (now, check['host_name'], check['returncode'], check['output'].replace('\n', '\\n'))
+		else:
+			# Service check
+			line = '[%s] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%s;%s' % (now, check['host_name'], check['service_description'], check['returncode'], check['output'].replace('\n', '\\n'))
 
 		if pipe:
 			pipe.write(line + '\n')
@@ -173,11 +180,11 @@ if options.mode == 'passive' or options.mode == 'passive_check':
 		if options.markold:
 			if (now - filetimestamp) > options.seconds:
 				returnstring = 'WARNING'
-				output = 'Check results are %s(>%s) seconds old' % ((now-filetimestamp), options.seconds)
+				output = '%s check results written, which are %s(>%s) seconds old' % (count_services, (now-filetimestamp), options.seconds)
 				returncode = 1
 
 		if not output:
-			output = 'Check results are %s seconds old' % (now-filetimestamp)
+			output = '%s check results written which are %s seconds old' % (count_services, (now-filetimestamp))
 
 		print 'Nag(ix)SC %s - %s' % (returnstring, output)
 		sys.exit(returncode)
@@ -199,7 +206,12 @@ elif options.mode == 'checkresult' or options.mode == 'checkresult_check':
 		filename = os.path.join(options.checkresultdir, 'c' + ''.join([random.choice(chars) for i in range(6)]))
 		try:
 			crfile = open(filename, "w")
-			crfile.write('### Active Check Result File ###\nfile_time=%s\n\n### Nagios Service Check Result ###\n# Time: %s\nhost_name=%s\nservice_description=%s\ncheck_type=0\ncheck_options=0\nscheduled_check=1\nreschedule_check=1\nlatency=0.0\nstart_time=%s.00\nfinish_time=%s.05\nearly_timeout=0\nexited_ok=1\nreturn_code=%s\noutput=%s\n' % (timestamp, datetime.datetime.now().ctime(), check['host_name'], check['service_description'], timestamp, timestamp, check['returncode'], check['output'].replace('\n', '\\n') ) )
+			if check['service_description'] == None or check['service_description'] == '':
+				# Host check
+				crfile.write('### Active Check Result File ###\nfile_time=%s\n\n### Nagios Service Check Result ###\n# Time: %s\nhost_name=%s\ncheck_type=0\ncheck_options=0\nscheduled_check=1\nreschedule_check=1\nlatency=0.0\nstart_time=%s.00\nfinish_time=%s.05\nearly_timeout=0\nexited_ok=1\nreturn_code=%s\noutput=%s\n' % (timestamp, datetime.datetime.now().ctime(), check['host_name'], timestamp, timestamp, check['returncode'], check['output'].replace('\n', '\\n') ) )
+			else:
+				# Service check
+				crfile.write('### Active Check Result File ###\nfile_time=%s\n\n### Nagios Service Check Result ###\n# Time: %s\nhost_name=%s\nservice_description=%s\ncheck_type=0\ncheck_options=0\nscheduled_check=1\nreschedule_check=1\nlatency=0.0\nstart_time=%s.00\nfinish_time=%s.05\nearly_timeout=0\nexited_ok=1\nreturn_code=%s\noutput=%s\n' % (timestamp, datetime.datetime.now().ctime(), check['host_name'], check['service_description'], timestamp, timestamp, check['returncode'], check['output'].replace('\n', '\\n') ) )
 			crfile.close()
 
 			# Create OK file

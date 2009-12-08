@@ -5,6 +5,8 @@
 
 	<host>
 		<name encoding="plain">host1</name>
+		<returncode>0</returncode>
+		<output>T0sgLSAxMjcuMC4wLjE6IHJ0YSAwLjA4NG1zLCBsb3N0IDAlfHJ0YT0wLjA4NG1zOzIwMC4wMDA7NTAwLjAwMDswOyBwbD0wJTs0MDs4MDs7Cg==</output>
 
 		<service>
 			<description encoding="base64">RGlza19Ib21l</description>

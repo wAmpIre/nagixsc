@@ -3,7 +3,7 @@
 
 <!ELEMENT timestamp (#PCDATA)>
 
-<!ELEMENT host (name,service+)>
+<!ELEMENT host (name,returncode?,output?,service+)>
 <!ATTLIST host encoding CDATA #IMPLIED >
 
 <!ELEMENT name (#PCDATA)>

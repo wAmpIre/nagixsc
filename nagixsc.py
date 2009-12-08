@@ -68,11 +68,34 @@ def xml_to_dict(xmldoc, verb=0, hostfilter=None, servicefilter=None):
 		hostname = decode(xmlhostname.get_content(), xmlhostname.prop('encoding'))
 		debug(2, verb, 'Found host "%s"' % hostname)
 
+		# Look for Host check result
+		if host.xpathEval('returncode'):
+			retcode   = host.xpathEval('returncode')[0].get_content()
+		else:
+			retcode   = None
+
+		if host.xpathEval('output'):
+			xmloutput = host.xpathEval('output')[0]
+			output    = decode(xmloutput.get_content(), xmloutput.prop('encoding')).rstrip()
+		else:
+			output    = None
+
+		if host.xpathEval('timestamp'):
+			timestamp = int(host.xpathEval('timestamp')[0].get_content())
+		else:
+			timestamp = filetimestamp
+
+		if retcode and output:
+			checks.append({'host_name':hostname, 'service_description':None, 'returncode':retcode, 'output':output, 'timestamp':timestamp})
+
+
+		# Look for service filter
 		if servicefilter:
 			services = host.xpathEval('service[description="%s"] | service[description="%s"]' % (servicefilter, encode(servicefilter)))
 		else:
 			services = host.xpathEval('service')
 
+		# Loop over services in host
 		for service in services:
 			service_dict = {}
 
@@ -81,7 +104,7 @@ def xml_to_dict(xmldoc, verb=0, hostfilter=None, servicefilter=None):
 
 			srvdescr = decode(xmldescr.get_content(), xmldescr.prop('encoding'))
 			retcode  = service.xpathEval('returncode')[0].get_content()
-			output   = decode(xmloutput.get_content(), xmldescr.prop('encoding')).rstrip()
+			output   = decode(xmloutput.get_content(), xmloutput.prop('encoding')).rstrip()
 
 			try:
 				timestamp = int(service.xpathEval('timestamp')[0].get_content())
@@ -117,14 +140,23 @@ def xml_from_dict(checks, encoding='base64'):
 			xmlhostname = xmlhost.newChild(None, 'name', encode(check['host_name'], encoding))
 			lasthost = check['host_name']
 
-		xmlservice    = xmlhost.newChild(None, 'service', None)
-		xmlname       = xmlservice.newChild(None, 'description', encode(check['service_description'], encoding))
-		xmlname.setProp('encoding', encoding)
-		xmlreturncode = xmlservice.newChild(None, 'returncode', str(check['returncode']))
-		xmloutput     = xmlservice.newChild(None, 'output', encode(check['output'], encoding))
-		xmloutput.setProp('encoding', encoding)
-		if check.has_key('timestamp'):
-			xmltimestamp  = xmlservice.newChild(None, 'timestamp', str(check['timestamp']))
+		if check['service_description'] == '' or check['service_description'] == None:
+			# Host check result
+			xmlreturncode = xmlhost.newChild(None, 'returncode', str(check['returncode']))
+			xmloutput     = xmlhost.newChild(None, 'output', encode(check['output'], encoding))
+			xmloutput.setProp('encoding', encoding)
+			if check.has_key('timestamp'):
+				xmltimestamp  = xmlhost.newChild(None, 'timestamp', str(check['timestamp']))
+		else:
+			# Service check result
+			xmlservice    = xmlhost.newChild(None, 'service', None)
+			xmlname       = xmlservice.newChild(None, 'description', encode(check['service_description'], encoding))
+			xmlname.setProp('encoding', encoding)
+			xmlreturncode = xmlservice.newChild(None, 'returncode', str(check['returncode']))
+			xmloutput     = xmlservice.newChild(None, 'output', encode(check['output'], encoding))
+			xmloutput.setProp('encoding', encoding)
+			if check.has_key('timestamp'):
+				xmltimestamp  = xmlservice.newChild(None, 'timestamp', str(check['timestamp']))
 
 	return xmldoc
 
