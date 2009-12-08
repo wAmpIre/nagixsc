@@ -1,6 +1,7 @@
 import base64
 import datetime
 import libxml2
+import sys
 
 def debug(level, verb, string):
 	if level <= verb:
@@ -25,6 +26,37 @@ def encode(data, encoding=None):
 		return data
 	else:
 		return base64.b64encode(data)
+
+
+##############################################################################
+
+def read_xml(options):
+	if options.url != None:
+		import urllib2
+
+		if options.httpuser and options.httppasswd:
+			passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
+			passman.add_password(None, options.url, options.httpuser, options.httppasswd)
+			authhandler = urllib2.HTTPBasicAuthHandler(passman)
+			opener = urllib2.build_opener(authhandler)
+			urllib2.install_opener(opener)
+
+		try:
+			response = urllib2.urlopen(options.url)
+		except urllib2.HTTPError, error:
+			print error
+			sys.exit(0)
+		except urllib2.URLError, error:
+			print error.reason[1]
+			sys.exit(0)
+
+		doc = libxml2.parseDoc(response.read())
+		response.close()
+
+	else:
+		doc = libxml2.parseFile(options.file)
+
+	return doc
 
 
 ##############################################################################

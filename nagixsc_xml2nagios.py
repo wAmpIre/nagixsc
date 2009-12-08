@@ -16,6 +16,8 @@ MODEs = [ 'passive', 'passive_check', 'checkresult', 'checkresult_check', 'activ
 parser = optparse.OptionParser()
 
 parser.add_option('-u', '', dest='url', help='URL of status file (xml)')
+parser.add_option('-l', '', dest='httpuser', help='HTTP user name')
+parser.add_option('-a', '', dest='httppasswd', help='HTTP password')
 parser.add_option('-f', '', dest='file', help='(Path and) file name of status file')
 parser.add_option('-S', '', dest='schemacheck', help='Check XML against DTD')
 parser.add_option('-s', '', dest='seconds', type='int', help='Maximum age in seconds of xml timestamp')
@@ -28,6 +30,8 @@ parser.add_option('-D', '', dest='service', help='Service description to search 
 parser.add_option('-v', '', action='count', dest='verb', help='Verbose output')
 
 parser.set_defaults(url=None)
+parser.set_defaults(httpuser=None)
+parser.set_defaults(httppasswd=None)
 parser.set_defaults(file='nagixsc.xml')
 parser.set_defaults(schemacheck='')
 parser.set_defaults(seconds=14400)
@@ -91,14 +95,7 @@ elif options.mode == 'active':
 now = int(datetime.datetime.now().strftime('%s'))
 
 # Get URL or file
-if options.url != None:
-	import urllib2
-
-	response = urllib2.urlopen(options.url)
-	doc = libxml2.parseDoc(response.read())
-	response.close()
-else:
-	doc = libxml2.parseFile(options.file)
+doc = read_xml(options)
 
 
 # Check XML against DTD
