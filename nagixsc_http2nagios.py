@@ -1,15 +1,15 @@
 #!/usr/bin/python
 
-import cherrypy
+import BaseHTTPServer
+import base64
+import cgi
+import md5
 import os
 import re
 import subprocess
 
-config = {	'server.socket_host':		'0.0.0.0',
-			'server.socket_port':		15667,
-			'log.screen':				False,
-			'log.access_file':			None,
-			'log.error_file':			None,
+config = {	'ip':			'',
+			'port':			15667,
 		}
 
 users = {	'nagixsc':		'019b0966d98fb71d1a4bc4ca0c81d5cc',		# PW: nagixsc
@@ -18,54 +18,85 @@ users = {	'nagixsc':		'019b0966d98fb71d1a4bc4ca0c81d5cc',		# PW: nagixsc
 XMLFILESIZE=102400
 X2N='./nagixsc_xml2nagios.py -O passive -vvv -f -'
 
-class CGI2Nagios:
-	def default(*args, **kwargs):
-		cmdline = X2N
+class HTTP2NagiosHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
-		if len(args) >= 3:
-			print 'Ignoring arguments: ', args[2:]
+	def http_error(code, output):
+		self.send_response(code)
+		self.send_header('Content-Type', 'text/plain')
+		self.end_headers()
+		self.wfile.write(output)
+		return
 
-		if len(args) >= 2:
-			c_configfile = args[1]
-		else:
-			c_configfile = ''
 
-		cherrypy.lib.auth.basic_auth('Nag(ix)SC HTTP', users)
-
-		print kwargs
-		if kwargs.has_key('xmlfile'):
-			if type(kwargs['xmlfile']) == str:
-				xmltext = kwargs['xmlfile']
-			else:
-				xmltext = kwargs['xmlfile'].file.read(XMLFILESIZE+1)
-
-			if len(xmltext) > 0:
-				try:
-					cmd     = subprocess.Popen(cmdline.split(' '), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-					output  = cmd.communicate(xmltext)[0].rstrip()
-					cherrypy.response.headers['Content-Type'] = 'text/plain'
-					return output
-				except OSError:
-					return 'Nag(IX)SC - Could not execute "%s"' % cmdline
-
-				return 'Nag(IX)SC - OK'
-			else:
-				return 'Nag(IX)SC - No data received'
-		else:
-			return """
-			<html><body>
+	def do_GET(self):
+		self.send_response(200)
+		self.send_header('Content-Type', 'text/html')
+		self.end_headers()
+		self.wfile.write('''			<html><body>
 				<form action="." method="post" enctype="multipart/form-data">
 				filename: <input type="file" name="xmlfile" /><br />
 				<input type="submit" />
 				</form>
 			</body></html>
-			"""
+			''')
+		return
 
-	default.exposed = True
 
-print 'curl -v -u nagixsc:nagixsc -F \'xmlfile=@xml/nagixsc.xml\' http://127.0.0.1:15667/foo/\n\n\n\n'
+	def do_POST(self):
+		cmdline = X2N
 
-cherrypy.config.update(config)
-cherrypy.tree.mount(CGI2Nagios(), '')
-cherrypy.quickstart(config=config)
+		# Check Basic Auth
+		try:
+			authdata = base64.b64decode(self.headers['Authorization'].split(' ')[1]).split(':')
+			if not users[authdata[0]] == md5.md5(authdata[1]).hexdigest():
+				raise Exception
+		except:
+			self.send_response(401)
+			self.send_header('WWW-Authenticate', 'Basic realm="Nag(ix)SC HTTP Push"')
+			self.send_header('Content-Type', 'text/plain')
+			self.end_headers()
+			self.wfile.write('Sorry! No action without login!')
+			return
+
+		(ctype,pdict) = cgi.parse_header(self.headers.getheader('content-type'))
+		if ctype == 'multipart/form-data':
+			query = cgi.parse_multipart(self.rfile, pdict)
+		xmltext = query.get('xmlfile')[0]
+
+		if len(xmltext) > 0:
+			try:
+				cmd     = subprocess.Popen(cmdline.split(' '), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+				output  = cmd.communicate(xmltext)[0].rstrip()
+				retcode = cmd.returncode
+
+				if retcode == 0:
+					self.send_response(200)
+					self.send_header('Content-Type', 'text/plain')
+					self.end_headers()
+					self.wfile.write(output)
+					return
+				else:
+					http_error(500, output)
+					return
+
+			except OSError:
+				http_error(500, 'Nag(IX)SC - Could not execute "%s"' % cmdline)
+				return
+
+		else:
+			http_error(500, 'Nag(IX)SC - No data received')
+			return
+
+
+
+def main():
+	try:
+		server = BaseHTTPServer.HTTPServer((config['ip'], config['port']), HTTP2NagiosHandler)
+		server.serve_forever()
+	except:
+		server.socket.close()
+
+if __name__ == '__main__':
+	print 'curl -v -u nagixsc:nagixsc -F \'xmlfile=@xml/nagixsc.xml\' http://127.0.0.1:15667/\n\n'
+	main()
 

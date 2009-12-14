@@ -39,7 +39,7 @@ class Conf2HTTPHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 				raise Exception
 		except:
 			self.send_response(401)
-			self.send_header('WWW-Authenticate', 'Basic realm="Nag(ix)SC"')
+			self.send_header('WWW-Authenticate', 'Basic realm="Nag(ix)SC Pull"')
 			self.send_header('Content-Type', 'text/plain')
 			self.end_headers()
 			self.wfile.write('Sorry! No action without login!')
