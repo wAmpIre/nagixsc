@@ -92,10 +92,11 @@ elif options.mode == 'active':
 
 ##############################################################################
 
-now = int(datetime.datetime.now().strftime('%s'))
-
 # Get URL or file
 doc = read_xml(options)
+
+# Now timestamp AFTER getting the XML file
+now = int(datetime.datetime.now().strftime('%s'))
 
 
 # Check XML against DTD
