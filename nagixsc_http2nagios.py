@@ -3,10 +3,14 @@
 import BaseHTTPServer
 import base64
 import cgi
-import md5
 import os
 import re
 import subprocess
+
+try:
+	from hashlib import md5
+except ImportError:
+	from md5 import md5
 
 config = {	'ip':			'',
 			'port':			15667,
@@ -20,7 +24,7 @@ X2N='./nagixsc_xml2nagios.py -O passive -vvv -f -'
 
 class HTTP2NagiosHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
-	def http_error(code, output):
+	def http_error(self, code, output):
 		self.send_response(code)
 		self.send_header('Content-Type', 'text/plain')
 		self.end_headers()
@@ -48,7 +52,7 @@ class HTTP2NagiosHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 		# Check Basic Auth
 		try:
 			authdata = base64.b64decode(self.headers['Authorization'].split(' ')[1]).split(':')
-			if not users[authdata[0]] == md5.md5(authdata[1]).hexdigest():
+			if not users[authdata[0]] == md5(authdata[1]).hexdigest():
 				raise Exception
 		except:
 			self.send_response(401)

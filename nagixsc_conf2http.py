@@ -2,10 +2,14 @@
 
 import BaseHTTPServer
 import base64
-import md5
 import os
 import re
 import subprocess
+
+try:
+	from hashlib import md5
+except ImportError:
+	from md5 import md5
 
 config = {	'ip':			'',
 			'port':			15666,
@@ -19,7 +23,7 @@ C2X='./nagixsc_conf2xml.py'
 
 class Conf2HTTPHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
-	def http_error(code, output):
+	def http_error(self, code, output):
 		self.send_response(code)
 		self.send_header('Content-Type', 'text/plain')
 		self.end_headers()
@@ -35,7 +39,7 @@ class Conf2HTTPHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 		# Check Basic Auth
 		try:
 			authdata = base64.b64decode(self.headers['Authorization'].split(' ')[1]).split(':')
-			if not users[authdata[0]] == md5.md5(authdata[1]).hexdigest():
+			if not users[authdata[0]] == md5(authdata[1]).hexdigest():
 				raise Exception
 		except:
 			self.send_response(401)
@@ -62,10 +66,10 @@ class Conf2HTTPHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 			configfile =''
 
 		if re.search('\.\.', configfile):
-			http_error(500, 'Found ".." in config file name')
+			self.http_error(500, 'Found ".." in config file name')
 			return
 		if configfile and not re.search('^[a-zA-Z0-9-_\.]+$', configfile):
-			http_error(500, 'Config file name contains invalid characters')
+			self.http_error(500, 'Config file name contains invalid characters')
 			return
 
 		if configfile:
@@ -82,7 +86,7 @@ class Conf2HTTPHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 			output  = cmd.communicate()[0].rstrip()
 			retcode = cmd.returncode
 		except OSError:
-			http_error(500, 'Could not execute "%s"' % cmdline)
+			self.http_error(500, 'Could not execute "%s"' % cmdline)
 			return
 
 		if retcode == 0:
@@ -91,7 +95,7 @@ class Conf2HTTPHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 			self.end_headers()
 			self.wfile.write(output)
 		else:
-			http_error(500, output)
+			self.http_error(500, output)
 
 		return
 
