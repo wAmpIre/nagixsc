@@ -1,26 +1,55 @@
 #!/usr/bin/python
 
 import BaseHTTPServer
+import ConfigParser
 import base64
 import cgi
+import optparse
 import os
 import re
 import subprocess
+import sys
 
 try:
 	from hashlib import md5
 except ImportError:
 	from md5 import md5
 
-config = {	'ip':			'',
-			'port':			15667,
-		}
+##############################################################################
 
-users = {	'nagixsc':		'019b0966d98fb71d1a4bc4ca0c81d5cc',		# PW: nagixsc
-		}
+parser = optparse.OptionParser()
 
-XMLFILESIZE=102400
-X2N='./nagixsc_xml2nagios.py -O passive -vvv -f -'
+parser.add_option('-c', '', dest='cfgfile', help='Config file')
+
+parser.set_defaults(cfgfile='http2nagios.cfg')
+
+(options, args) = parser.parse_args()
+
+cfgread = ConfigParser.SafeConfigParser()
+cfgread.optionxform = str # We need case-sensitive options
+cfg_list = cfgread.read(options.cfgfile)
+
+if cfg_list == []:
+	print 'Config file "%s" could not be read!' % options.cfgfile
+	sys.exit(1)
+
+config = {}
+try:
+	config['ip']   = cfgread.get('server', 'ip')
+	config['port'] = cfgread.getint('server', 'port')
+
+	config['max_xml_file_size']  = cfgread.get('server', 'max_xml_file_size')
+	config['xml2nagios_cmdline'] = cfgread.get('server', 'xml2nagios_cmdline')
+
+except ConfigParser.NoOptionError, e:
+	print 'Config file error: %s ' % e
+	sys.exit(1)
+
+users = {}
+for u in cfgread.options('users'):
+	users[u] = cfgread.get('users', u)
+
+##############################################################################
 
 class HTTP2NagiosHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
@@ -47,7 +76,7 @@ class HTTP2NagiosHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 
 	def do_POST(self):
-		cmdline = X2N
+		cmdline = config['xml2nagios_cmdline']
 
 		# Check Basic Auth
 		try:

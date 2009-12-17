@@ -1,25 +1,54 @@
 #!/usr/bin/python
 
 import BaseHTTPServer
+import ConfigParser
 import base64
+import optparse
 import os
 import re
 import subprocess
+import sys
 
 try:
 	from hashlib import md5
 except ImportError:
 	from md5 import md5
 
-config = {	'ip':			'',
-			'port':			15666,
-		}
+##############################################################################
 
-users = {	'nagixsc':		'019b0966d98fb71d1a4bc4ca0c81d5cc',		# PW: nagixsc
-		}
+parser = optparse.OptionParser()
 
-CONFDIR='./examples'
-C2X='./nagixsc_conf2xml.py'
+parser.add_option('-c', '', dest='cfgfile', help='Config file')
+
+parser.set_defaults(cfgfile='conf2http.cfg')
+
+(options, args) = parser.parse_args()
+
+cfgread = ConfigParser.SafeConfigParser()
+cfgread.optionxform = str # We need case-sensitive options
+cfg_list = cfgread.read(options.cfgfile)
+
+if cfg_list == []:
+	print 'Config file "%s" could not be read!' % options.cfgfile
+	sys.exit(1)
+
+config = {}
+try:
+	config['ip']   = cfgread.get('server', 'ip')
+	config['port'] = cfgread.getint('server', 'port')
+
+	config['conf_dir']         = cfgread.get('server', 'conf_dir')
+	config['conf2xml_cmdline'] = cfgread.get('server', 'conf2xml_cmdline')
+
+except ConfigParser.NoOptionError, e:
+	print 'Config file error: %s ' % e
+	sys.exit(1)
+
+users = {}
+for u in cfgread.options('users'):
+	users[u] = cfgread.get('users', u)
+
+##############################################################################
 
 class Conf2HTTPHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
@@ -32,7 +61,7 @@ class Conf2HTTPHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 
 	def do_GET(self):
-		cmdline = C2X
+		cmdline = config['conf2xml_cmdline']
 
 		path = self.path.split('/')
 
@@ -74,7 +103,7 @@ class Conf2HTTPHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 		if configfile:
 			configfile += '.conf'
-			cmdline    += ' -c ' + os.path.join(CONFDIR, configfile)
+			cmdline    += ' -c ' + os.path.join(config['conf_dir'], configfile)
 
 		if host:
 			cmdline += ' -H %s' % host

@@ -21,9 +21,10 @@ Vorbemerkung:
 Zur Zeit wird ein INI-Datei ähnliches Format verwendet. Dies kann sich aber in
 Zukunft noch ändern!
 
-Als Vorlage können die Dateien "examples/nagixsc_debian.conf" (Nagios mit
-Hilfe der Debian-Packages installiert) und "examples/nagixsc_usrlocal.conf"
-(selbst kompiliert nach /usr/local/nagios) dienen.
+Als Vorlage können die Dateien "sample-configs/conf/nagixsc_debian.conf"
+(Nagios mit Hilfe der Debian-Packages installiert) und
+"sample-configs/conf/nagixsc_usrlocal.conf" (selbst kompiliert nach
+/usr/local/nagios) dienen.
 
 Je Rechner, der überwacht werden soll, wird ein Abschnitt in eckigen Klammern
 angelegt. Der Abschnittsname entspricht dabei dem Nagios-Hostname. Innerhalb
@@ -46,7 +47,7 @@ Der Abschnitt "[nagixsc]" ist für zukünftige Erweiterungen reserviert!
 
 Zum ersten Test lässt man sich das XML am Besten an der Konsole ausgeben:
 
-% ./nagixsc_conf2xml.py -e plain -c examples/nagixsc.conf
+% ./nagixsc_conf2xml.py -e plain -c sample-configs/conf/nagixsc.conf
 
 Zur Lesbarkeit wird das Encoding ausgeschaltet ("-e plain"). Dies ist nicht
 für den Produktivbetrieb gedacht!
@@ -58,7 +59,7 @@ geeignete Zeitpunkt sich eine kleine, eigene Konfigurationsdatei zu schreiben.
 Hat man diese (zur Not geht's natürlich auch mit den Beispielen weiter),
 erstellt man nun ein XML, welches zur Weiterverarbeitung geeignet ist:
 
-% ./nagixsc_conf2xml.py -c examples/nagixsc.conf -o /tmp/nagixsc.xml
+% ./nagixsc_conf2xml.py -c sample-configs/conf/nagixsc.conf -o /tmp/nagixsc.xml
 
 In der Praxis kann man diese XML-Datei auf einen Web-Server legen, damit sie
 direkt vom Nagios aus abrufbar ist.
