@@ -73,6 +73,6 @@ for check in checks:
 
 		print HOSTTEMPL % check
 
-	print SERVICETEMPL % check
-
+	if check['service_description']:
+		print SERVICETEMPL % check
 
