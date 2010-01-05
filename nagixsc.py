@@ -88,7 +88,8 @@ def xml_get_timestamp(xmldoc):
 
 def xml_to_dict(xmldoc, verb=0, hostfilter=None, servicefilter=None):
 	checks = []
-	filetimestamp = xml_get_timestamp(xmldoc)
+	now = int(datetime.datetime.now().strftime('%s'))
+	filetimestamp = reset_future_timestamp(xml_get_timestamp(xmldoc), now)
 
 	if hostfilter:
 		hosts = xmldoc.xpathNewContext().xpathEval('/nagixsc/host[name="%s"] | /nagixsc/host[name="%s"]' % (hostfilter, encode(hostfilter)))
@@ -113,7 +114,7 @@ def xml_to_dict(xmldoc, verb=0, hostfilter=None, servicefilter=None):
 			output    = None
 
 		if host.xpathEval('timestamp'):
-			timestamp = int(host.xpathEval('timestamp')[0].get_content())
+			timestamp = reset_future_timestamp(int(host.xpathEval('timestamp')[0].get_content()), now)
 		else:
 			timestamp = filetimestamp
 
@@ -139,7 +140,7 @@ def xml_to_dict(xmldoc, verb=0, hostfilter=None, servicefilter=None):
 			output   = decode(xmloutput.get_content(), xmloutput.prop('encoding')).rstrip()
 
 			try:
-				timestamp = int(service.xpathEval('timestamp')[0].get_content())
+				timestamp = reset_future_timestamp(int(service.xpathEval('timestamp')[0].get_content()), now)
 			except:
 				timestamp = filetimestamp
 
@@ -200,4 +201,11 @@ def check_mark_outdated(check, now, maxtimediff, markold):
 		if markold:
 			check['returncode'] = 3
 	return check
+
+
+def reset_future_timestamp(timestamp, now):
+	if timestamp <= now:
+		return timestamp
+	else:
+		return now
 
