@@ -2,6 +2,7 @@
 
 import ConfigParser
 import optparse
+import shlex
 import subprocess
 import sys
 
@@ -43,7 +44,7 @@ if options.encoding not in available_encodings():
 
 def exec_check(host_name, service_descr, cmdline):
 	try:
-		cmd     = subprocess.Popen(cmdline.split(' '), stdout=subprocess.PIPE)
+		cmd     = subprocess.Popen(shlex.split(cmdline), stdout=subprocess.PIPE)
 		output  = cmd.communicate()[0].rstrip()
 		retcode = cmd.returncode
 	except OSError:
