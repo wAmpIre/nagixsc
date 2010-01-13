@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-import ConfigParser
 import optparse
 import sys
 
@@ -9,9 +8,6 @@ import sys
 from nagixsc import *
 
 ##############################################################################
-
-checks = []
-
 
 parser = optparse.OptionParser()
 
@@ -40,57 +36,13 @@ if not check_encoding(options.encoding):
 
 ##############################################################################
 
-config = ConfigParser.RawConfigParser()
-config.optionxform = str # We need case-sensitive options
-conf_list = config.read(options.conffile)
+config = read_inifile(options.conffile)
 
-if conf_list == []:
+if not config:
 	print 'Config file "%s" could not be read!' % options.conffile
-	sys.exit(127)
+	sys.exit(5)
 
-# Sections are Hosts (not 'nagixsc'), options in sections are Services
-hosts = config.sections()
-if 'nagixsc' in hosts:
-	hosts.remove('nagixsc')
-
-# Filter out host/section if it exists
-if options.host:
-	if options.host in hosts:
-		hosts = [options.host,]
-	else:
-		hosts = []
-
-for host in hosts:
-	# Overwrite section/host name with '_host_name'
-	if config.has_option(host,'_host_name'):
-		host_name = config.get(host,'_host_name')
-	else:
-		host_name = host
-
-
-	services = config.options(host)
-	# Look for host check
-	if '_host_check' in services and not options.service:
-		cmdline = config.get(host, '_host_check')
-		check = exec_check(host_name, None, cmdline)
-		checks.append(check)
-
-
-	# Filter out service if it exists
-	if options.service:
-		if options.service in services:
-			services = [options.service,]
-		else:
-			services = []
-
-	for service in services:
-		# If option starts with '_' it may be a NagixSC option in the future
-		if service[0] != '_':
-			cmdline = config.get(host, service)
-
-			check = exec_check(host_name, service, cmdline)
-			checks.append(check)
-
+checks = conf2dict(config, options.host, options.service)
 
 xmldoc = xml_from_dict(checks, options.encoding)
 if options.outfile == '-':

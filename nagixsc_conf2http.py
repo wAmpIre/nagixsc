@@ -16,6 +16,10 @@ except ImportError:
 
 ##############################################################################
 
+from nagixsc import *
+
+##############################################################################
+
 parser = optparse.OptionParser()
 
 parser.add_option('-c', '', dest='cfgfile', help='Config file')
@@ -82,49 +86,40 @@ class Conf2HTTPHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 		if len(path) >= 4:
 			service = path[3]
 		else:
-			service = ''
+			service = None
 
 		if len(path) >= 3:
 			host = path[2]
 		else:
-			host = ''
+			host = None
 
 		if len(path) >= 2:
-			configfile = path[1]
+			configfile = path[1] + '.conf'
 		else:
-			configfile =''
+			self.http_error(500, 'No config file specified')
+			return
 
 		if re.search('\.\.', configfile):
 			self.http_error(500, 'Found ".." in config file name')
 			return
-		if configfile and not re.search('^[a-zA-Z0-9-_\.]+$', configfile):
+		if not re.search('^[a-zA-Z0-9-_\.]+$', configfile):
 			self.http_error(500, 'Config file name contains invalid characters')
 			return
 
-		if configfile:
-			configfile += '.conf'
-			cmdline    += ' -c ' + os.path.join(config['conf_dir'], configfile)
-
-		if host:
-			cmdline += ' -H %s' % host
-			if service:
-				cmdline += ' -D %s' % service
-
-		try:
-			cmd     = subprocess.Popen(cmdline.split(' '), stdout=subprocess.PIPE)
-			output  = cmd.communicate()[0].rstrip()
-			retcode = cmd.returncode
-		except OSError:
-			self.http_error(500, 'Could not execute "%s"' % cmdline)
+		check_config = read_inifile(os.path.join(config['conf_dir'], configfile))
+		if not check_config:
+			self.http_error(500, 'Could not read config file "%s"' % configfile)
 			return
 
-		if retcode == 0:
-			self.send_response(200)
-			self.send_header('Content-Type', 'text/xml')
-			self.end_headers()
-			self.wfile.write(output)
-		else:
-			self.http_error(500, output)
+		checks = conf2dict(check_config, host, service)
+		if not checks:
+			self.http_error(500, 'No checks executed')
+			return
+
+		self.send_response(200)
+		self.send_header('Content-Type', 'text/xml')
+		self.end_headers()
+		self.wfile.write(xml_from_dict(checks))
 
 		return
 

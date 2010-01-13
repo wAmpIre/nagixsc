@@ -1,3 +1,4 @@
+import ConfigParser
 import base64
 import datetime
 import libxml2
@@ -39,6 +40,19 @@ def encode(data, encoding=None):
 
 ##############################################################################
 
+def read_inifile(inifile):
+	config = ConfigParser.RawConfigParser()
+	config.optionxform = str # We need case-sensitive options
+	ini_list = config.read(inifile)
+
+	if ini_list:
+		return config
+	else:
+		return False
+
+
+##############################################################################
+
 def exec_check(host_name, service_descr, cmdline):
 	try:
 		cmd     = subprocess.Popen(shlex.split(cmdline), stdout=subprocess.PIPE)
@@ -49,6 +63,57 @@ def exec_check(host_name, service_descr, cmdline):
 		retcode = 127
 
 	return {'host_name':host_name, 'service_description':service_descr, 'returncode':retcode, 'output':output, 'timestamp':datetime.datetime.now().strftime('%s')}
+
+
+##############################################################################
+
+def conf2dict(config, opt_host=None, opt_service=None):
+	checks = []
+
+	# Sections are Hosts (not 'nagixsc'), options in sections are Services
+	hosts = config.sections()
+	if 'nagixsc' in hosts:
+		hosts.remove('nagixsc')
+
+	# Filter out host/section if it exists
+	if opt_host:
+		if opt_host in hosts:
+			hosts = [opt_host,]
+		else:
+			hosts = []
+
+	for host in hosts:
+		# Overwrite section/host name with '_host_name'
+		if config.has_option(host,'_host_name'):
+			host_name = config.get(host,'_host_name')
+		else:
+			host_name = host
+
+
+		services = config.options(host)
+		# Look for host check
+		if '_host_check' in services and not opt_service:
+			cmdline = config.get(host, '_host_check')
+			check = exec_check(host_name, None, cmdline)
+			checks.append(check)
+
+
+		# Filter out service if given in cmd line options
+		if opt_service:
+			if opt_service in services:
+				services = [opt_service,]
+			else:
+				services = []
+
+		for service in services:
+			# If option starts with '_' it may be a NagixSC option in the future
+			if service[0] != '_':
+				cmdline = config.get(host, service)
+
+				check = exec_check(host_name, service, cmdline)
+				checks.append(check)
+
+	return checks
 
 
 ##############################################################################
