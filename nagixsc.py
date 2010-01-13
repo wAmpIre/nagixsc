@@ -16,6 +16,13 @@ def available_encodings():
 	return ['base64', 'plain',]
 
 
+def check_encoding(enc):
+	if enc in available_encodings():
+		return True
+	else:
+		return False
+
+
 def decode(data, encoding):
 	if encoding == 'plain':
 		return data

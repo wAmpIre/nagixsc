@@ -33,9 +33,9 @@ parser.set_defaults(verb=0)
 
 ##############################################################################
 
-if options.encoding not in available_encodings():
+if not check_encoding(options.encoding):
 	print 'Wrong encoding method "%s"!' % options.encoding
-	print 'Could be one of: %s' % ', '.join(available_encodings)
+	print 'Could be one of: "%s"' % '", "'.join(available_encodings())
 	sys.exit(127)
 
 ##############################################################################
