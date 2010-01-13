@@ -2,8 +2,6 @@
 
 import ConfigParser
 import optparse
-import shlex
-import subprocess
 import sys
 
 ##############################################################################
@@ -39,19 +37,6 @@ if options.encoding not in available_encodings():
 	print 'Wrong encoding method "%s"!' % options.encoding
 	print 'Could be one of: %s' % ', '.join(available_encodings)
 	sys.exit(127)
-
-##############################################################################
-
-def exec_check(host_name, service_descr, cmdline):
-	try:
-		cmd     = subprocess.Popen(shlex.split(cmdline), stdout=subprocess.PIPE)
-		output  = cmd.communicate()[0].rstrip()
-		retcode = cmd.returncode
-	except OSError:
-		output  = 'Could not execute "%s"' % cmdline
-		retcode = 127
-
-	return {'host_name':host_name, 'service_description':service_descr, 'returncode':retcode, 'output':output, 'timestamp':datetime.datetime.now().strftime('%s')}
 
 ##############################################################################
 

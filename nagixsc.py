@@ -1,6 +1,8 @@
 import base64
 import datetime
 import libxml2
+import shlex
+import subprocess
 import sys
 
 def debug(level, verb, string):
@@ -26,6 +28,20 @@ def encode(data, encoding=None):
 		return data
 	else:
 		return base64.b64encode(data)
+
+
+##############################################################################
+
+def exec_check(host_name, service_descr, cmdline):
+	try:
+		cmd     = subprocess.Popen(shlex.split(cmdline), stdout=subprocess.PIPE)
+		output  = cmd.communicate()[0].rstrip()
+		retcode = cmd.returncode
+	except OSError:
+		output  = 'Could not execute "%s"' % cmdline
+		retcode = 127
+
+	return {'host_name':host_name, 'service_description':service_descr, 'returncode':retcode, 'output':output, 'timestamp':datetime.datetime.now().strftime('%s')}
 
 
 ##############################################################################
