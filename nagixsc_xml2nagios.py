@@ -5,8 +5,6 @@ import datetime
 import libxml2
 import optparse
 import os
-import random
-import string
 import sys
 
 NAGIOSCMDs = [ '/usr/local/nagios/var/rw/nagios.cmd', '/var/lib/nagios3/rw/nagios.cmd', ]
@@ -52,7 +50,7 @@ from nagixsc import *
 ##############################################################################
 
 if options.mode not in MODEs:
-	print 'Not an allowed mode "%s" - allowed are: %s' % (options.mode, ", ".join(MODEs))
+	print 'Not an allowed mode "%s" - allowed are: "%s"' % (options.mode, '", "'.join(MODEs))
 	sys.exit(127)
 
 # Check command line options wrt mode
@@ -141,39 +139,13 @@ for check in checks:
 # Next steps depend on mode, output results
 # MODE: passive
 if options.mode == 'passive' or options.mode == 'passive_check':
-	count_services = 0
-	# Prepare
-	if options.verb <= 2:
-		pipe = open(options.pipe, "w")
-	else:
-		pipe = None
-
-	# Output
-	for check in checks:
-		count_services += 1
-		if check['service_description'] == None or check['service_description'] == '':
-			# Host check
-			line = '[%s] PROCESS_HOST_CHECK_RESULT;%s;%s;%s' % (now, check['host_name'], check['returncode'], check['output'].replace('\n', '\\n'))
-		else:
-			# Service check
-			line = '[%s] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%s;%s' % (now, check['host_name'], check['service_description'], check['returncode'], check['output'].replace('\n', '\\n'))
-
-		if pipe:
-			pipe.write(line + '\n')
-		debug(2, options.verb, '%s / %s: %s - "%s"' % (check['host_name'], check['service_description'], check['returncode'], check['output'].replace('\n', '\\n')))
-		debug(3, options.verb, line)
-
-	# Close
-	if pipe:
-		pipe.close()
-	else:
-		print "Passive check results NOT written to Nagios pipe due to -vvv!"
+	count_services = dict2out_passive(checks, xml_get_timestamp(doc), options.pipe, options.verb)
 
 	# Return/Exit as a Nagios Plugin if called with mode 'passive_check'
 	if options.mode == 'passive_check':
 		returncode   = 0
 		returnstring = 'OK'
-		output       = ''
+		output       = '%s check results written which are %s seconds old' % (count_services, (now-filetimestamp))
 
 		if options.markold:
 			if (now - filetimestamp) > options.seconds:
@@ -181,45 +153,23 @@ if options.mode == 'passive' or options.mode == 'passive_check':
 				output = '%s check results written, which are %s(>%s) seconds old' % (count_services, (now-filetimestamp), options.seconds)
 				returncode = 1
 
-		if not output:
-			output = '%s check results written which are %s seconds old' % (count_services, (now-filetimestamp))
-
 		print 'Nag(ix)SC %s - %s' % (returnstring, output)
 		sys.exit(returncode)
 
-# MODE: checkresult
-elif options.mode == 'checkresult' or options.mode == 'checkresult_check':
-	count_services = 0
-	count_failed   = 0
+# MODE: checkresult: "checkresult", "checkresult_check"
+elif options.mode.startswith('checkresult'):
+	(count_services, count_failed, list_failed) = dict2out_checkresult(checks, xml_get_timestamp(doc), options.checkresultdir, options.verb)
 
-	chars = string.letters + string.digits
+	if list_failed and options.mode == 'checkresult':
+		for entry in list_failed:
+			print 'Could not write checkresult files "%s(.ok)" for "%s"/"%s"!' % (entry[0], entry[1], entry[2])
 
-	for check in checks:
-		count_services += 1
-		if check.has_key('timestamp'):
-			timestamp = check['timestamp']
+		if count_failed == 0:
+			sys.exit(0)
 		else:
-			timestamp = xml_get_timestamp(xmldoc)
+			sys.exit(1)
 
-		filename = os.path.join(options.checkresultdir, 'c' + ''.join([random.choice(chars) for i in range(6)]))
-		try:
-			crfile = open(filename, "w")
-			if check['service_description'] == None or check['service_description'] == '':
-				# Host check
-				crfile.write('### Active Check Result File ###\nfile_time=%s\n\n### Nagios Service Check Result ###\n# Time: %s\nhost_name=%s\ncheck_type=0\ncheck_options=0\nscheduled_check=1\nreschedule_check=1\nlatency=0.0\nstart_time=%s.00\nfinish_time=%s.05\nearly_timeout=0\nexited_ok=1\nreturn_code=%s\noutput=%s\n' % (timestamp, datetime.datetime.now().ctime(), check['host_name'], timestamp, timestamp, check['returncode'], check['output'].replace('\n', '\\n') ) )
-			else:
-				# Service check
-				crfile.write('### Active Check Result File ###\nfile_time=%s\n\n### Nagios Service Check Result ###\n# Time: %s\nhost_name=%s\nservice_description=%s\ncheck_type=0\ncheck_options=0\nscheduled_check=1\nreschedule_check=1\nlatency=0.0\nstart_time=%s.00\nfinish_time=%s.05\nearly_timeout=0\nexited_ok=1\nreturn_code=%s\noutput=%s\n' % (timestamp, datetime.datetime.now().ctime(), check['host_name'], check['service_description'], timestamp, timestamp, check['returncode'], check['output'].replace('\n', '\\n') ) )
-			crfile.close()
-
-			# Create OK file
-			open(filename + '.ok', 'w').close()
-		except:
-			count_failed += 1
-			if options.mode == 'checkresult':
-				print 'Could not write checkresult files "%s(.ok)" for "%s"/"%s"!' % (filename, check['host_name'], check['service_description'])
-
-	if options.mode == 'checkresult_check':
+	elif options.mode == 'checkresult_check':
 		returnstring = ''
 		output       = ''
 		if count_failed == 0:
@@ -237,11 +187,6 @@ elif options.mode == 'checkresult' or options.mode == 'checkresult_check':
 
 		print 'Nag(ix)SC %s - %s' % (returnstring, output)
 		sys.exit(returncode)
-
-	if count_failed == 0:
-		sys.exit(0)
-	else:
-		sys.exit(1)
 
 # MODE: active
 elif options.mode == 'active':

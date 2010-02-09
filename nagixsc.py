@@ -4,8 +4,11 @@ import SocketServer
 import base64
 import datetime
 import libxml2
+import os
+import random
 import shlex
 import socket
+import string
 import subprocess
 import sys
 
@@ -121,6 +124,83 @@ def conf2dict(config, opt_host=None, opt_service=None):
 
 ##############################################################################
 
+def dict2out_passive(checks, xmltimestamp, opt_pipe, opt_verb=0):
+	FORMAT_HOST = '[%s] PROCESS_HOST_CHECK_RESULT;%s;%s;%s'
+	FORMAT_SERVICE = '[%s] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%s;%s'
+	count_services = 0
+	now = datetime.datetime.now().strftime('%s')
+
+	# Prepare
+	if opt_verb <= 2:
+		pipe = open(opt_pipe, "w")
+	else:
+		pipe = None
+
+	# Output
+	for check in checks:
+		count_services += 1
+		if check.has_key('timestamp'):
+			timestamp = check['timestamp']
+		else:
+			timestamp = xmltimestamp
+		count_services += 1
+
+		if check['service_description'] == None or check['service_description'] == '':
+			# Host check
+			line = FORMAT_HOST % (now, check['host_name'], check['returncode'], check['output'].replace('\n', '\\n'))
+		else:
+			# Service check
+			line =  FORMAT_SERVICE % (now, check['host_name'], check['service_description'], check['returncode'], check['output'].replace('\n', '\\n'))
+
+		if pipe:
+			pipe.write(line + '\n')
+		debug(2, opt_verb, line)
+
+	# Close
+	if pipe:
+		pipe.close()
+	else:
+		print "Passive check results NOT written to Nagios pipe due to -vvv!"
+
+	return count_services
+
+
+def dict2out_checkresult(checks, xmltimestamp, opt_checkresultdir, opt_verb):
+	count_services = 0
+	count_failed = 0
+	list_failed = []
+	chars = string.letters + string.digits
+	ctimestamp = datetime.datetime.now().ctime()
+
+	for check in checks:
+		count_services += 1
+		if check.has_key('timestamp'):
+			timestamp = check['timestamp']
+		else:
+			timestamp = xmltimestamp
+
+		filename = os.path.join(opt_checkresultdir, 'c' + ''.join([random.choice(chars) for i in range(6)]))
+		try:
+			crfile = open(filename, "w")
+			if check['service_description'] == None or check['service_description'] == '':
+				# Host check
+				crfile.write('### Active Check Result File ###\nfile_time=%s\n\n### Nagios Service Check Result ###\n# Time: %s\nhost_name=%s\ncheck_type=0\ncheck_options=0\nscheduled_check=1\nreschedule_check=1\nlatency=0.0\nstart_time=%s.00\nfinish_time=%s.05\nearly_timeout=0\nexited_ok=1\nreturn_code=%s\noutput=%s\n' % (timestamp, ctimestamp, check['host_name'], timestamp, timestamp, check['returncode'], check['output'].replace('\n', '\\n') ) )
+			else:
+				# Service check
+				crfile.write('### Active Check Result File ###\nfile_time=%s\n\n### Nagios Service Check Result ###\n# Time: %s\nhost_name=%s\nservice_description=%s\ncheck_type=0\ncheck_options=0\nscheduled_check=1\nreschedule_check=1\nlatency=0.0\nstart_time=%s.00\nfinish_time=%s.05\nearly_timeout=0\nexited_ok=1\nreturn_code=%s\noutput=%s\n' % (timestamp, ctimestamp, check['host_name'], check['service_description'], timestamp, timestamp, check['returncode'], check['output'].replace('\n', '\\n') ) )
+			crfile.close()
+
+			# Create OK file
+			open(filename + '.ok', 'w').close()
+		except:
+			count_failed += 1
+			list_failed.append([filename, check['host_name'], check['service_description']])
+
+	return (count_services, count_failed, list_failed)
+
+
+##############################################################################
+
 def read_xml(options):
 	if options.url != None:
 		import urllib2
@@ -148,6 +228,10 @@ def read_xml(options):
 		doc = libxml2.parseFile(options.file)
 
 	return doc
+
+
+def read_xml_from_string(content):
+	return libxml2.parseDoc(content)
 
 
 ##############################################################################

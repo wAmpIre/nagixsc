@@ -1,19 +1,21 @@
 #!/usr/bin/python
 
-import BaseHTTPServer
 import ConfigParser
 import base64
 import cgi
 import optparse
 import os
 import re
-import subprocess
 import sys
 
 try:
 	from hashlib import md5
 except ImportError:
 	from md5 import md5
+
+##############################################################################
+
+from nagixsc import *
 
 ##############################################################################
 
@@ -37,9 +39,11 @@ config = {}
 try:
 	config['ip']   = cfgread.get('server', 'ip')
 	config['port'] = cfgread.getint('server', 'port')
+	config['ssl']  = cfgread.getboolean('server', 'ssl')
+	config['cert'] = cfgread.get('server', 'sslcert')
 
 	config['max_xml_file_size']  = cfgread.get('server', 'max_xml_file_size')
-	config['xml2nagios_cmdline'] = cfgread.get('server', 'xml2nagios_cmdline')
+	config['checkresultdir'] = cfgread.get('mode_checkresult', 'dir')
 
 except ConfigParser.NoOptionError, e:
 	print 'Config file error: %s ' % e
@@ -51,7 +55,7 @@ for u in cfgread.options('users'):
 
 ##############################################################################
 
-class HTTP2NagiosHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+class HTTP2NagiosHandler(MyHTTPRequestHandler):
 
 	def http_error(self, code, output):
 		self.send_response(code)
@@ -76,8 +80,6 @@ class HTTP2NagiosHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 
 	def do_POST(self):
-		cmdline = config['xml2nagios_cmdline']
-
 		# Check Basic Auth
 		try:
 			authdata = base64.b64decode(self.headers['Authorization'].split(' ')[1]).split(':')
@@ -97,23 +99,19 @@ class HTTP2NagiosHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 		xmltext = query.get('xmlfile')[0]
 
 		if len(xmltext) > 0:
-			try:
-				cmd     = subprocess.Popen(cmdline.split(' '), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-				output  = cmd.communicate(xmltext)[0].rstrip()
-				retcode = cmd.returncode
+			doc = read_xml_from_string(xmltext)
+			checks = xml_to_dict(doc)
 
-				if retcode == 0:
-					self.send_response(200)
-					self.send_header('Content-Type', 'text/plain')
-					self.end_headers()
-					self.wfile.write(output)
-					return
-				else:
-					http_error(500, output)
-					return
+			(count_services, count_failed, list_failed) = dict2out_checkresult(checks, xml_get_timestamp(doc), config['checkresultdir'], 0)
 
-			except OSError:
-				http_error(500, 'Nag(IX)SC - Could not execute "%s"' % cmdline)
+			if count_failed < count_services:
+				self.send_response(200)
+				self.send_header('Content-Type', 'text/plain')
+				self.end_headers()
+				self.wfile.write('Wrote %s check results, %s failed' % (count_services, count_failed))
+				return
+			else:
+				http_error(500, 'Could not write all %s check results' % count_services)
 				return
 
 		else:
@@ -123,8 +121,12 @@ class HTTP2NagiosHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 
 def main():
+	if config['ssl'] and not os.path.isfile(config['cert']):
+		print 'SSL certificate "%s" not found!' % config['cert']
+		sys.exit(127)
+
+	server = MyHTTPServer((config['ip'], config['port']), HTTP2NagiosHandler, ssl=config['ssl'], sslpemfile=config['cert'])
 	try:
-		server = BaseHTTPServer.HTTPServer((config['ip'], config['port']), HTTP2NagiosHandler)
 		server.serve_forever()
 	except:
 		server.socket.close()
