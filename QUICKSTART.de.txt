@@ -139,7 +139,7 @@ Für einen selbstkompilierten Nagios und die Debian-Packages können die
 Sollte dies nicht klappen, kann man sie mit "-p" (Pipe) bzw. "-r" (Resultdir)
 übergeben werden.
 
-Will man "erstmal nur testen", so kann man "nagix_xm2nagios.py" mit "touch
+Will man "erstmal nur testen", so kann man "nagixsc_xm2nagios.py" mit "touch
 /tmp/nagixsc.cmd" und "-p /tmp/nagixsc.cmd" bzw. "mkdir /tmp/nagixsc.result"
 und "-r /tmp/nagixsc.result" aufrufen und die generierten External Commands
 bzw. Checkresult-Dateien ansehen.
