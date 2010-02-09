@@ -1,8 +1,11 @@
+import BaseHTTPServer
 import ConfigParser
+import SocketServer
 import base64
 import datetime
 import libxml2
 import shlex
+import socket
 import subprocess
 import sys
 
@@ -296,4 +299,37 @@ def reset_future_timestamp(timestamp, now):
 		return timestamp
 	else:
 		return now
+
+##############################################################################
+
+class MyHTTPServer(BaseHTTPServer.HTTPServer):
+	def __init__(self, server_address, HandlerClass, ssl=False, sslpemfile=None):
+		if ssl:
+			# FIXME: SSL is in Py2.6
+			try:
+				from OpenSSL import SSL
+			except:
+				print 'No Python OpenSSL wrapper/bindings found!'
+				sys.exit(127)
+
+			SocketServer.BaseServer.__init__(self, server_address, HandlerClass)
+			context = SSL.Context(SSL.SSLv23_METHOD)
+			context.use_privatekey_file (sslpemfile)
+			context.use_certificate_file(sslpemfile)
+			self.socket = SSL.Connection(context, socket.socket(self.address_family, self.socket_type))
+		else:
+			SocketServer.BaseServer.__init__(self, server_address, HandlerClass)
+			self.socket = socket.socket(self.address_family, self.socket_type)
+
+		self.server_bind()
+		self.server_activate()
+
+
+class MyHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+	def setup(self):
+		self.connection = self.request
+		self.rfile = socket._fileobject(self.request, "rb", self.rbufsize)
+		self.wfile = socket._fileobject(self.request, "wb", self.wbufsize)
+
+##############################################################################
 

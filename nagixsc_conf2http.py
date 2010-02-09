@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-import BaseHTTPServer
 import ConfigParser
 import base64
 import optparse
@@ -40,9 +39,10 @@ config = {}
 try:
 	config['ip']   = cfgread.get('server', 'ip')
 	config['port'] = cfgread.getint('server', 'port')
+	config['ssl']  = cfgread.getboolean('server', 'ssl')
+	config['cert'] = cfgread.get('server', 'sslcert')
 
 	config['conf_dir']         = cfgread.get('server', 'conf_dir')
-	config['conf2xml_cmdline'] = cfgread.get('server', 'conf2xml_cmdline')
 
 except ConfigParser.NoOptionError, e:
 	print 'Config file error: %s ' % e
@@ -54,7 +54,7 @@ for u in cfgread.options('users'):
 
 ##############################################################################
 
-class Conf2HTTPHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+class Conf2HTTPHandler(MyHTTPRequestHandler):
 
 	def http_error(self, code, output):
 		self.send_response(code)
@@ -65,8 +65,6 @@ class Conf2HTTPHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 
 	def do_GET(self):
-		cmdline = config['conf2xml_cmdline']
-
 		path = self.path.split('/')
 
 		# Check Basic Auth
@@ -126,8 +124,12 @@ class Conf2HTTPHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 
 def main():
+	if config['ssl'] and not os.path.isfile(config['cert']):
+		print 'SSL certificate "%s" not found!' % config['cert']
+		sys.exit(127)
+
+	server = MyHTTPServer((config['ip'], config['port']), Conf2HTTPHandler, ssl=config['ssl'], sslpemfile=config['cert'])
 	try:
-		server = BaseHTTPServer.HTTPServer((config['ip'], config['port']), Conf2HTTPHandler)
 		server.serve_forever()
 	except:
 		server.socket.close()
