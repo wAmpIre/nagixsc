@@ -111,11 +111,11 @@ class HTTP2NagiosHandler(MyHTTPRequestHandler):
 				self.wfile.write('Wrote %s check results, %s failed' % (count_services, count_failed))
 				return
 			else:
-				http_error(500, 'Could not write all %s check results' % count_services)
+				self.http_error(501, 'Could not write all %s check results' % count_services)
 				return
 
 		else:
-			http_error(500, 'Nag(IX)SC - No data received')
+			self.http_error(502, 'Nag(IX)SC - No data received')
 			return
 
 
