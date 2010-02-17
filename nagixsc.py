@@ -4,6 +4,7 @@ import SocketServer
 import base64
 import datetime
 import libxml2
+import mimetools
 import os
 import random
 import shlex
@@ -383,6 +384,28 @@ def reset_future_timestamp(timestamp, now):
 		return timestamp
 	else:
 		return now
+
+##############################################################################
+
+def encode_multipart(xmldoc, httpuser, httppasswd):
+	BOUNDARY = mimetools.choose_boundary()
+	CRLF = '\r\n'
+	L = []
+	L.append('--' + BOUNDARY)
+	L.append('Content-Disposition: form-data; name="xmlfile"; filename="xmlfile"')
+	L.append('Content-Type: application/xml')
+	L.append('')
+	L.append(xmldoc.serialize())
+	L.append('--' + BOUNDARY + '--')
+	L.append('')
+	body = CRLF.join(L)
+	content_type = 'multipart/form-data; boundary=%s' % BOUNDARY
+	headers = {'Content-Type': content_type, 'Content-Length': str(len(body))}
+
+	if httpuser and httppasswd:
+		headers['Authorization'] = 'Basic %s' % base64.b64encode(':'.join([httpuser, httppasswd]))
+
+	return (headers, body)
 
 ##############################################################################
 
