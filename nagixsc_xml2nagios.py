@@ -160,9 +160,10 @@ if options.mode == 'passive' or options.mode == 'passive_check':
 elif options.mode.startswith('checkresult'):
 	(count_services, count_failed, list_failed) = dict2out_checkresult(checks, xml_get_timestamp(doc), options.checkresultdir, options.verb)
 
-	if list_failed and options.mode == 'checkresult':
-		for entry in list_failed:
-			print 'Could not write checkresult files "%s(.ok)" for "%s"/"%s"!' % (entry[0], entry[1], entry[2])
+	if options.mode == 'checkresult':
+		if list_failed:
+			for entry in list_failed:
+				print 'Could not write checkresult files "%s(.ok)" for "%s"/"%s"!' % (entry[0], entry[1], entry[2])
 
 		if count_failed == 0:
 			sys.exit(0)
