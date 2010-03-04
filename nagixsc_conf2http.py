@@ -22,6 +22,7 @@ from nagixsc import *
 parser = optparse.OptionParser()
 
 parser.add_option('-c', '', dest='cfgfile', help='Config file')
+parser.add_option('-d', '--daemon', action='store_true', dest='daemon', help='Daemonize, go to background')
 parser.add_option('', '--nossl', action='store_true', dest='nossl', help='Disable SSL (overwrites config file)')
 
 parser.set_defaults(cfgfile='conf2http.cfg')
@@ -131,6 +132,9 @@ def main():
 	if config['ssl'] and not os.path.isfile(config['cert']):
 		print 'SSL certificate "%s" not found!' % config['cert']
 		sys.exit(127)
+
+	if options.daemon:
+		daemonize(pidfile='/var/run/nagixsc_conf2http.pid')
 
 	server = MyHTTPServer((config['ip'], config['port']), Conf2HTTPHandler, ssl=config['ssl'], sslpemfile=config['cert'])
 	try:

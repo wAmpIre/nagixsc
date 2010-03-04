@@ -409,6 +409,45 @@ def encode_multipart(xmldoc, httpuser, httppasswd):
 
 ##############################################################################
 
+def daemonize(pidfile=None, stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
+	# 1st fork
+	try:
+		pid = os.fork()
+		if pid > 0:
+			sys.exit(0)
+	except OSError, e:
+		sys.stderr.write("1st fork failed: (%d) %sn" % (e.errno, e.strerror))
+		sys.exit(1)
+	# Prepare 2nd fork
+	os.chdir("/")
+	os.umask(0)
+	os.setsid( )
+	# 2nd fork
+	try:
+		pid = os.fork()
+		if pid > 0:
+			sys.exit(0)
+	except OSError, e:
+		sys.stderr.write("2nd fork failed: (%d) %sn" % (e.errno, e.strerror))
+		sys.exit(1)
+	# Redirect stdin, stdout, stderr
+	sys.stdout.flush()
+	sys.stderr.flush()
+	si = file(stdin, 'r')
+	so = file(stdout, 'a+')
+	se = file(stderr, 'a+', 0)
+	os.dup2(si.fileno(), sys.stdin.fileno())
+	os.dup2(so.fileno(), sys.stdout.fileno())
+	os.dup2(se.fileno(), sys.stderr.fileno())
+
+	if pidfile:
+		pid = str(os.getpid())
+		file(pidfile, 'w+').write('%s\n' % pid)
+
+	return
+
+##############################################################################
+
 class MyHTTPServer(BaseHTTPServer.HTTPServer):
 	def __init__(self, server_address, HandlerClass, ssl=False, sslpemfile=None):
 		if ssl:
