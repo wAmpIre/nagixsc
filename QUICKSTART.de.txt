@@ -69,10 +69,10 @@ direkt vom Nagios aus abrufbar ist.
 01.03. Kontrolle der erstellten XML-Datei
 -----------------------------------------
 
-Mit Hilfe des Skripts "dummy_read_xml.py" kann man sich den Inhalt einer
+Mit Hilfe des Skripts "nagixsc_read_xml.py" kann man sich den Inhalt einer
 Nag(ix)SC-XML-Datei ansehen:
 
-% ./dummy_read_xml.py -f /tmp/nagixsc.xml
+% ./nagixsc_read_xml.py -f /tmp/nagixsc.xml
 
 Der Inhalt wird zuerst blockweise, dann als formatiertes Python Dict
 ausgegeben.
