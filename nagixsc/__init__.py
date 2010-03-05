@@ -61,15 +61,27 @@ def read_inifile(inifile):
 ##############################################################################
 
 def exec_check(host_name, service_descr, cmdline):
-	try:
-		cmd     = subprocess.Popen(shlex.split(cmdline), stdout=subprocess.PIPE)
-		output  = cmd.communicate()[0].rstrip()
-		retcode = cmd.returncode
-	except OSError:
-		output  = 'Could not execute "%s"' % cmdline
-		retcode = 127
+	cmdarray = shlex.split(cmdline)
 
-	return {'host_name':host_name, 'service_description':service_descr, 'returncode':retcode, 'output':output, 'timestamp':datetime.datetime.now().strftime('%s')}
+	check = {}
+	check['host_name'] = host_name
+	check['service_description'] = service_descr
+
+	if len(cmdarray) == 0:
+		check['output'] = 'No command line specified!'
+		check['returncode'] = 127
+		return check
+
+	try:
+		cmd     = subprocess.Popen(cmdarray, stdout=subprocess.PIPE)
+		check['output'] = cmd.communicate()[0].rstrip()
+		check['returncode'] = cmd.returncode
+	except OSError:
+		check['output'] = 'Could not execute "%s"' % cmdline
+		check['returncode'] = 127
+
+	check['timestamp'] = datetime.datetime.now().strftime('%s')
+	return check
 
 
 ##############################################################################
