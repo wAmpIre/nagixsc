@@ -306,7 +306,8 @@ def xml_to_dict(xmldoc, verb=0, hostfilter=None, servicefilter=None):
 		else:
 			timestamp = filetimestamp
 
-		if retcode and output:
+		# Append only if no service filter
+		if not servicefilter and retcode and output:
 			checks.append({'host_name':hostname, 'service_description':None, 'returncode':retcode, 'output':output, 'timestamp':timestamp})
 
 
