@@ -83,10 +83,9 @@ elif options.mode == 'checkresult' or options.mode == 'checkresult_check':
 elif options.mode == 'active':
 	debug(1, options.verb, 'Running in active/plugin mode')
 	if options.host == None:
-		debug(1, options.verb, 'No host specified, using first host in XML file')
+		debug(1, options.verb, 'No host specified on command line')
 	if options.service == None:
-		print 'No service specified on command line!'
-		sys.exit(127)
+		debug(1, options.verb, 'No service specified on command line, looking at XML file later')
 
 ##############################################################################
 
@@ -194,9 +193,15 @@ elif options.mode == 'active':
 
 	if len(checks) > 1:
 		print 'Nag(ix)SC UNKNOWN - Found more (%s) than one host/service!' % len(checks)
+		print 'Found: ' + ', '.join(['%s/%s' % (c['host_name'], c['service_description']) for c in checks])
 		sys.exit(3)
 	elif len(checks) == 0:
-		print 'Nag(ix)SC UNKNOWN - No check for "%s"/"%s" found in XML' % (options.host, options.service)
+		output = 'Nag(ix)SC UNKNOWN - No check found in XML'
+		if options.host:
+			output += ' - Host filter: "%s"' % options.host
+		if options.service:
+			output += ' - Service filter: "%s"' % options.service
+		print output
 		sys.exit(3)
 
 	print checks[0]['output']
