@@ -102,7 +102,7 @@ class Conf2HTTPHandler(MyHTTPRequestHandler):
 		if re.search('\.\.', configfile):
 			self.http_error(500, 'Found ".." in config file name')
 			return
-		if not re.search('^[a-zA-Z0-9-_]+$', configfile):
+		if not re.search('^[a-zA-Z0-9-_]+.conf$', configfile):
 			self.http_error(500, 'Config file name contains invalid characters')
 			return
 
