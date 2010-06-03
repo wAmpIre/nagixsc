@@ -51,6 +51,10 @@ except ConfigParser.NoOptionError, e:
 	print 'Config file error: %s ' % e
 	sys.exit(1)
 
+if os.access(config['checkresultdir'],os.W_OK) == False:
+	print 'Checkresult directory "%s" is not writable.' % config['checkresultdir']
+	sys.exit(1)
+
 users = {}
 for u in cfgread.options('users'):
 	users[u] = cfgread.get('users', u)
