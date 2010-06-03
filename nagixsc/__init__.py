@@ -383,6 +383,14 @@ def xml_from_dict(checks, encoding='base64'):
 	return xmldoc
 
 
+def xml_merge(xmldocs):
+	checks = []
+	for xmldoc in xmldocs:
+		checks.extend(xml_to_dict(xmldoc))
+	newxmldoc = xml_from_dict(checks)
+	return newxmldoc
+
+
 def check_mark_outdated(check, now, maxtimediff, markold):
 	timedelta = now - check['timestamp']
 	if timedelta > maxtimediff:
