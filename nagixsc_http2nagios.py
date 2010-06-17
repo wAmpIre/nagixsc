@@ -37,23 +37,73 @@ if cfg_list == []:
 	print 'Config file "%s" could not be read!' % options.cfgfile
 	sys.exit(1)
 
-config = {}
+config = {
+			'ip': '0.0.0.0',
+			'port': '15666',
+			'ssl': False,
+			'sslcert': None,
+			'conf_dir': '',
+			'pidfile': '/var/run/nagixsc_conf2http.pid'
+		}
+
+if 'ip' in cfgread.items('server'):
+	config['ip'] = cfgread.get('server', 'ip')
+
+if 'port' in cfgread.items('server'):
+	config['port'] = cfgread.get('server', 'port')
 try:
-	config['ip']   = cfgread.get('server', 'ip')
-	config['port'] = cfgread.getint('server', 'port')
-	config['ssl']  = cfgread.getboolean('server', 'ssl')
-	config['cert'] = cfgread.get('server', 'sslcert')
+	config['port'] = int(config['port'])
+except ValueError:
+	print 'Port "%s" not an integer!' % config['port']
+	sys.exit(127)
 
-	config['max_xml_file_size']  = cfgread.get('server', 'max_xml_file_size')
-	config['checkresultdir'] = cfgread.get('mode_checkresult', 'dir')
+if 'ssl' in cfgread.items('server'):
+	try:
+		config['ssl'] = cfgread.getboolean('server', 'ssl')
+	except ValueError:
+		print 'Value for "ssl" ("%s") not boolean!' % config['ssl']
+		sys.exit(127)
 
-except ConfigParser.NoOptionError, e:
-	print 'Config file error: %s ' % e
-	sys.exit(1)
+if config['ssl']:
+	if 'sslcert' in cfgread.items('server'):
+		config['sslcert'] = cfgread.get('server', 'sslcert')
+	else:
+		print 'SSL but no certificate file specified!'
+		sys.exit(127)
 
-if os.access(config['checkresultdir'],os.W_OK) == False:
-	print 'Checkresult directory "%s" is not writable.' % config['checkresultdir']
-	sys.exit(1)
+try:
+	config['mode'] = cfgread.get('server', 'mode')
+except ConfigParser.NoOptionError:
+	print 'No "mode" specified!'
+	sys.exit(127)
+
+if config['mode']=='checkresult':
+	try:
+		config['checkresultdir'] = cfgread.get('mode_checkresult','dir')
+	except ConfigParser.NoOptionError:
+		print 'No "dir" in section "mode_checkresult" specified!'
+		sys.exit(127)
+
+	if os.access(config['checkresultdir'],os.W_OK) == False:
+		print 'Checkresult directory "%s" is not writable!' % config['checkresultdir']
+		sys.exit(1)
+
+elif config['mode']=='passive':
+	try:
+		config['mode_pipe'] = cfgread.get('mode_passive','pipe')
+	except ConfigParser.NoOptionError:
+		print 'No "pipe" in section "mode_passive" specified!'
+		sys.exit(127)
+
+	if os.access(config['pipe'],os.W_OK) == False:
+		print 'Nagios command pipe "%s" is not writable!' % config['pipe']
+		sys.exit(1)
+
+else:
+	print 'Mode "%s" is neither "checkresult" nor "passive"!'
+	sys.exit(127)
+
+
 
 users = {}
 for u in cfgread.options('users'):
@@ -130,20 +180,21 @@ def main():
 	if options.nossl:
 		config['ssl'] = False
 
-	if config['ssl'] and not os.path.isfile(config['cert']):
-		print 'SSL certificate "%s" not found!' % config['cert']
+	if config['ssl'] and not os.path.isfile(config['sslcert']):
+		print 'SSL certificate "%s" not found!' % config['sslcert']
 		sys.exit(127)
 
 	if options.daemon:
-		daemonize(pidfile='/var/run/nagixsc_http2nagios.pid')
+		daemonize(pidfile=config['pidfile'])
+	else:
+		print 'curl -v -u nagixsc:nagixsc -F \'xmlfile=@xml/nagixsc.xml\' http://127.0.0.1:%s/\n\n' % config['port']
 
-	server = MyHTTPServer((config['ip'], config['port']), HTTP2NagiosHandler, ssl=config['ssl'], sslpemfile=config['cert'])
+	server = MyHTTPServer((config['ip'], config['port']), HTTP2NagiosHandler, ssl=config['ssl'], sslpemfile=config['sslcert'])
 	try:
 		server.serve_forever()
 	except:
 		server.socket.close()
 
 if __name__ == '__main__':
-	print 'curl -v -u nagixsc:nagixsc -F \'xmlfile=@xml/nagixsc.xml\' http://127.0.0.1:15667/\n\n'
 	main()
 

@@ -37,18 +37,49 @@ if cfg_list == []:
 	print 'Config file "%s" could not be read!' % options.cfgfile
 	sys.exit(1)
 
-config = {}
+config = {
+			'ip': '0.0.0.0',
+			'port': '15666',
+			'ssl': False,
+			'sslcert': None,
+			'conf_dir': '',
+			'pidfile': '/var/run/nagixsc_conf2http.pid'
+		}
+
+if 'ip' in cfgread.items('server'):
+	config['ip'] = cfgread.get('server', 'ip')
+
+if 'port' in cfgread.items('server'):
+	config['port'] = cfgread.get('server', 'port')
 try:
-	config['ip']   = cfgread.get('server', 'ip')
-	config['port'] = cfgread.getint('server', 'port')
-	config['ssl']  = cfgread.getboolean('server', 'ssl')
-	config['cert'] = cfgread.get('server', 'sslcert')
+	config['port'] = int(config['port'])
+except ValueError:
+	print 'Port "%s" not an integer!' % config['port']
+	sys.exit(127)
 
-	config['conf_dir']         = cfgread.get('server', 'conf_dir')
+if 'ssl' in cfgread.items('server'):
+	try:
+		config['ssl'] = cfgread.getboolean('server', 'ssl')
+	except ValueError:
+		print 'Value for "ssl" ("%s") not boolean!' % config['ssl']
+		sys.exit(127)
 
-except ConfigParser.NoOptionError, e:
-	print 'Config file error: %s ' % e
-	sys.exit(1)
+if config['ssl']:
+	if 'sslcert' in cfgread.items('server'):
+		config['sslcert'] = cfgread.get('server', 'sslcert')
+	else:
+		print 'SSL but no certificate file specified!'
+		sys.exit(127)
+
+try:
+	config['conf_dir'] = cfgread.get('server', 'conf_dir')
+except ConfigParser.NoOptionError:
+	print 'No "conf_dir" specified!'
+	sys.exit(127)
+
+if 'pidfile' in cfgread.items('server'):
+	config['pidfile'] = cfgread.get('server', 'pidfile')
+
 
 users = {}
 for u in cfgread.options('users'):
@@ -129,14 +160,18 @@ def main():
 	if options.nossl:
 		config['ssl'] = False
 
-	if config['ssl'] and not os.path.isfile(config['cert']):
-		print 'SSL certificate "%s" not found!' % config['cert']
+	if config['ssl'] and not os.path.isfile(config['sslcert']):
+		print 'SSL certificate "%s" not found!' % config['sslcert']
+		sys.exit(127)
+
+	if not os.path.isdir(config['conf_dir']):
+		print 'Not a config file directory: "%s"' % config['conf_dir']
 		sys.exit(127)
 
 	if options.daemon:
-		daemonize(pidfile='/var/run/nagixsc_conf2http.pid')
+		daemonize(pidfile=config['pidfile'])
 
-	server = MyHTTPServer((config['ip'], config['port']), Conf2HTTPHandler, ssl=config['ssl'], sslpemfile=config['cert'])
+	server = MyHTTPServer((config['ip'], config['port']), Conf2HTTPHandler, ssl=config['ssl'], sslpemfile=config['sslcert'])
 	try:
 		server.serve_forever()
 	except:
