@@ -437,7 +437,7 @@ def daemonize(pidfile=None, stdin='/dev/null', stdout='/dev/null', stderr='/dev/
 		if pid > 0:
 			sys.exit(0)
 	except OSError, e:
-		sys.stderr.write("1st fork failed: (%d) %sn" % (e.errno, e.strerror))
+		sys.stderr.write("1st fork failed: (%d) %s\n" % (e.errno, e.strerror))
 		sys.exit(1)
 	# Prepare 2nd fork
 	os.chdir("/")
@@ -449,8 +449,18 @@ def daemonize(pidfile=None, stdin='/dev/null', stdout='/dev/null', stderr='/dev/
 		if pid > 0:
 			sys.exit(0)
 	except OSError, e:
-		sys.stderr.write("2nd fork failed: (%d) %sn" % (e.errno, e.strerror))
+		sys.stderr.write("2nd fork failed: (%d) %s\n" % (e.errno, e.strerror))
 		sys.exit(1)
+
+	# Try to write PID file
+	if pidfile:
+		pid = str(os.getpid())
+		try:
+			file(pidfile, 'w+').write('%s\n' % pid)
+		except IOError:
+			sys.stderr.write("Could not write PID file, exiting...\n")
+			sys.exit(1)
+
 	# Redirect stdin, stdout, stderr
 	sys.stdout.flush()
 	sys.stderr.flush()
@@ -460,10 +470,6 @@ def daemonize(pidfile=None, stdin='/dev/null', stdout='/dev/null', stderr='/dev/
 	os.dup2(si.fileno(), sys.stdin.fileno())
 	os.dup2(so.fileno(), sys.stdout.fileno())
 	os.dup2(se.fileno(), sys.stderr.fileno())
-
-	if pidfile:
-		pid = str(os.getpid())
-		file(pidfile, 'w+').write('%s\n' % pid)
 
 	return
 
