@@ -1,23 +1,23 @@
 #! /bin/sh
 ### BEGIN INIT INFO
-# Provides:          nagixsc_conf2http
+# Provides:          nagixsc_http2nagios
 # Required-Start:    $local_fs $remote_fs
 # Required-Stop:     $local_fs $remote_fs
 # Default-Start:     2 3 4 5
 # Default-Stop:      S 0 1 6
-# Short-Description: Nag(IX)SC HTTP Pull Server
-# Description:       Nag(IX)SC HTTP Pull Server
+# Short-Description: Nag(IX)SC HTTP Push Server
+# Description:       Nag(IX)SC HTTP Push Server
 ### END INIT INFO
 
 # Author: Sven Velt <sv@teamix.net>
 
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
-DESC="Nag(IX)SC Conf2HTTP"
-NAME=nagixsc_conf2http
+DESC="Nag(IX)SC http2nagios"
+NAME=nagixsc_http2nagios
 DAEMONPATH=/usr/local/nagixsc
 DAEMON=$DAEMONPATH/$NAME.py
-CFGFILE=$DAEMONPATH/etc/conf2http.cfg
+CFGFILE=$DAEMONPATH/etc/http2nagios.cfg
 DAEMON_ARGS="-c $CFGFILE"
 PIDFILE=/var/run/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME
