@@ -475,7 +475,7 @@ def daemonize(pidfile=None, stdin='/dev/null', stdout='/dev/null', stderr='/dev/
 
 ##############################################################################
 
-class MyHTTPServer(BaseHTTPServer.HTTPServer):
+class MyHTTPServer(SocketServer.ForkingMixIn, BaseHTTPServer.HTTPServer):
 	def __init__(self, server_address, HandlerClass, ssl=False, sslpemfile=None):
 		if ssl:
 			# FIXME: SSL is in Py2.6
