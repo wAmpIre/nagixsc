@@ -8,6 +8,7 @@ import mimetools
 import os
 import random
 import shlex
+import signal
 import socket
 import string
 import subprocess
@@ -17,6 +18,11 @@ def debug(level, verb, string):
 	if level <= verb:
 		print "%s: %s" % (level, string)
 
+
+##############################################################################
+
+class ExecTimeoutError(Exception):
+	pass
 
 ##############################################################################
 
@@ -60,7 +66,10 @@ def read_inifile(inifile):
 
 ##############################################################################
 
-def exec_check(host_name, service_descr, cmdline):
+def exec_timeout_handler(signum, frame):
+	raise ExecTimeoutError
+
+def exec_check(host_name, service_descr, cmdline, timeout=None, timeout_returncode=2):
 	cmdarray = shlex.split(cmdline)
 
 	check = {}
@@ -72,13 +81,27 @@ def exec_check(host_name, service_descr, cmdline):
 		check['returncode'] = 127
 		return check
 
+	if timeout:
+		signal.signal(signal.SIGALRM, exec_timeout_handler)
+		signal.alarm(timeout)
+
 	try:
-		cmd     = subprocess.Popen(cmdarray, stdout=subprocess.PIPE)
+		cmd = subprocess.Popen(cmdarray, stdout=subprocess.PIPE)
 		check['output'] = cmd.communicate()[0].rstrip()
 		check['returncode'] = cmd.returncode
 	except OSError:
 		check['output'] = 'Could not execute "%s"' % cmdline
 		check['returncode'] = 127
+	except ExecTimeoutError:
+		check['output'] = 'Plugin timed out after %s seconds' % timeout
+		check['returncode'] = timeout_returncode
+
+	if timeout:
+		signal.alarm(0)
+		try:
+			cmd.terminate()
+		except OSError:
+			pass
 
 	check['timestamp'] = datetime.datetime.now().strftime('%s')
 	return check
@@ -88,6 +111,18 @@ def exec_check(host_name, service_descr, cmdline):
 
 def conf2dict(config, opt_host=None, opt_service=None):
 	checks = []
+
+	# Read "plugin_timeout" from "[nagixsc]", default "None" (no timeout)
+	try:
+		timeout = config.getint('nagixsc','plugin_timeout')
+	except (ConfigParser.NoSectionError, ConfigParser.NoOptionError):
+		timeout = None
+
+	# Read "plugin_timeout_returncode" from "[nagixsc]", default "2" (CRITICAL)
+	try:
+		timeout_returncode = config.getint('nagixsc','plugin_timeout_returncode')
+	except (ConfigParser.NoSectionError, ConfigParser.NoOptionError):
+		timeout_returncode = 2
 
 	# Sections are Hosts (not 'nagixsc'), options in sections are Services
 	hosts = config.sections()
@@ -113,7 +148,7 @@ def conf2dict(config, opt_host=None, opt_service=None):
 		# Look for host check
 		if '_host_check' in services and not opt_service:
 			cmdline = config.get(host, '_host_check')
-			check = exec_check(host_name, None, cmdline)
+			check = exec_check(host_name, None, cmdline, timeout, timeout_returncode)
 			checks.append(check)
 
 
@@ -129,7 +164,7 @@ def conf2dict(config, opt_host=None, opt_service=None):
 			if service[0] != '_':
 				cmdline = config.get(host, service)
 
-				check = exec_check(host_name, service, cmdline)
+				check = exec_check(host_name, service, cmdline, timeout, timeout_returncode)
 				checks.append(check)
 
 	return checks
