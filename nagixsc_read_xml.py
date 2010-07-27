@@ -14,14 +14,16 @@ parser.add_option('-a', '', dest='httppasswd', help='HTTP password')
 parser.add_option('-f', '', dest='file', help='(Path and) file name of status file')
 parser.add_option('-s', '', dest='seconds', type='int', help='Maximum age in seconds of xml timestamp')
 parser.add_option('-m', '', action='store_true', dest='markold', help='Mark (Set state) of too old checks as UNKNOWN')
+parser.add_option('-P', '', action='store_true', dest='pprint', help='Output with Python\'s pprint')
 parser.add_option('-v', '', action='count', dest='verb', help='Verbose output')
 
 parser.set_defaults(url=None)
 parser.set_defaults(httpuser=None)
 parser.set_defaults(httppasswd=None)
-parser.set_defaults(file='nagixsc.xml')
+parser.set_defaults(file='-')
 parser.set_defaults(seconds=14400)
 parser.set_defaults(markold=False)
+parser.set_defaults(pprint=False)
 parser.set_defaults(verb=0)
 
 (options, args) = parser.parse_args()
@@ -60,10 +62,13 @@ debug(1, options.verb, 'Age of XML file: %s seconds, max allowed: %s seconds' % 
 checks = xml_to_dict(doc)
 
 
-# Loop over check results and output them
-for check in checks:
-	check = check_mark_outdated(check, now, options.seconds, options.markold)
-	print 'Host:      %s\nService:   %s\nRetCode:   %s\nOutput:    %r\nTimestamp: %s\n' % (check['host_name'], check['service_description'], check['returncode'], check['output'], check['timestamp'])
+if options.pprint:
+	# Print 'em all in one
+	import pprint
+	pprint.pprint(checks)
+else:
+	# Loop over check results and output them
+	for check in checks:
+		check = check_mark_outdated(check, now, options.seconds, options.markold)
+		print 'Host:      %s\nService:   %s\nRetCode:   %s\nOutput:    %r\nTimestamp: %s\n' % (check['host_name'], check['service_description'], check['returncode'], check['output'], check['timestamp'])
 
-import pprint
-pprint.pprint(checks)
