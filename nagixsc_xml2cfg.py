@@ -15,6 +15,9 @@ parser.add_option('-f', '', dest='file', help='(Path and) file name of status fi
 parser.add_option('-S', '', dest='schemacheck', help='Check XML against DTD')
 parser.add_option('-H', '', dest='host', help='Hostname to search for in XML file')
 parser.add_option('-D', '', dest='service', help='Service description to search for in XML file')
+parser.add_option('', '--host-template', dest='tmpl_host', help='Filename of host template')
+parser.add_option('', '--service-template', dest='tmpl_service', help='Filename of service template')
+parser.add_option('-O', '', dest='output', help='Output "hosts", "services" or "both" (default)')
 parser.add_option('-v', '', action='count', dest='verb', help='Verbose output')
 
 parser.set_defaults(url=None)
@@ -24,10 +27,14 @@ parser.set_defaults(file='nagixsc.xml')
 parser.set_defaults(schemacheck='')
 parser.set_defaults(host=None)
 parser.set_defaults(service=None)
+parser.set_defaults(output=None)
+parser.set_defaults(tmpl_host=None)
+parser.set_defaults(tmpl_service=None)
 parser.set_defaults(verb=0)
 
 (options, args) = parser.parse_args()
 
+# Hard coded default for host template
 HOSTTEMPL='''define host {
 	use		templ_host_default
 
@@ -36,6 +43,7 @@ HOSTTEMPL='''define host {
 }
 '''
 
+# Hard coded default for service template
 SERVICETEMPL='''define service {
 	use			templ_service_passive
 
@@ -50,6 +58,22 @@ SERVICETEMPL='''define service {
 from nagixsc import *
 
 ##############################################################################
+
+# Output
+if not options.output in [None, 'both', 'hosts', 'services']:
+	print 'Unknown output mode "%s"!' % options.output
+	sys.exit(1)
+
+if options.output in [None, 'both']:
+	options.output = ['hosts', 'services']
+else:
+	options.output = [options.output,]
+
+# Read host and/or service template
+if options.tmpl_host and 'hosts' in options.output:
+	HOSTTEMPL = open(options.tmpl_host).read()
+if options.tmpl_service and 'services' in options.output:
+	SERVICETEMPL = open(options.tmpl_service).read()
 
 # Get URL or file
 doc = read_xml(options)
@@ -86,8 +110,9 @@ for check in checks:
 	if not check['host_name'] in foundhosts:
 		foundhosts.append(check['host_name'])
 
-		print HOSTTEMPL % check
+		if 'hosts' in options.output:
+			print HOSTTEMPL % check
 
-	if check['service_description']:
+	if check['service_description'] and 'services' in options.output:
 		print SERVICETEMPL % check
 

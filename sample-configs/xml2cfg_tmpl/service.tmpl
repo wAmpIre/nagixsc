@@ -1,0 +1,7 @@
+define service {
+	use			templ_service_passive
+
+	host_name		%(host_name)s
+	service_description	%(service_description)s
+	check_command		check_passive
+}
