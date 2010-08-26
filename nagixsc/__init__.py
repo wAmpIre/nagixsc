@@ -99,7 +99,10 @@ def exec_check(host_name, service_descr, cmdline, timeout=None, timeout_returnco
 	if timeout:
 		signal.alarm(0)
 		try:
-			cmd.terminate()
+			if sys.version_info >= (2, 6):
+				cmd.terminate()
+			else:
+				os.kill(cmd.pid, 15)
 		except OSError:
 			pass
 
