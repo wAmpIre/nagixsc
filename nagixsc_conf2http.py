@@ -43,7 +43,8 @@ config = {
 			'ssl': False,
 			'sslcert': None,
 			'conf_dir': '',
-			'pidfile': '/var/run/nagixsc_conf2http.pid'
+			'pidfile': '/var/run/nagixsc_conf2http.pid',
+			'livestatus_socket' : None,
 		}
 
 if 'ip' in cfgread.options('server'):
@@ -79,6 +80,9 @@ except ConfigParser.NoOptionError:
 
 if 'pidfile' in cfgread.options('server'):
 	config['pidfile'] = cfgread.get('server', 'pidfile')
+
+if 'livestatus_socket' in cfgread.options('server'):
+	config['livestatus_socket'] = prepare_socket(cfgread.get('server', 'livestatus_socket'))
 
 
 users = {}
@@ -137,14 +141,26 @@ class Conf2HTTPHandler(MyHTTPRequestHandler):
 			self.http_error(500, 'Config file name contains invalid characters')
 			return
 
-		check_config = read_inifile(os.path.join(config['conf_dir'], configfile))
-		if not check_config:
-			self.http_error(500, 'Could not read config file "%s"' % configfile)
-			return
+		# Just be sure it exists
+		checks = None
 
-		checks = conf2dict(check_config, host, service)
+		# If config file name starts with "_" it's something special
+		if not configfile.startswith('_'):
+			# Try to read config file, execute checks
+			check_config = read_inifile(os.path.join(config['conf_dir'], configfile))
+			if not check_config:
+				self.http_error(500, 'Could not read config file "%s"' % configfile)
+				return
+			checks = conf2dict(check_config, host, service)
+
+		elif configfile=='_livestatus.conf' and config['livestatus_socket']:
+			# Read mk-livestatus and translate into XML
+			checks = livestatus2dict(config['livestatus_socket'], host, service)
+
+
+		# No check results? No (good) answer...
 		if not checks:
-			self.http_error(500, 'No checks executed')
+			self.http_error(500, 'No check results')
 			return
 
 		self.send_response(200)
