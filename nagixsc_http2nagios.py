@@ -39,7 +39,7 @@ if cfg_list == []:
 
 config = {
 			'ip': '0.0.0.0',
-			'port': '15666',
+			'port': '15667',
 			'ssl': False,
 			'sslcert': None,
 			'conf_dir': '',
