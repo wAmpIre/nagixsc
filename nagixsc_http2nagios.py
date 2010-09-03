@@ -46,10 +46,10 @@ config = {
 			'pidfile': '/var/run/nagixsc_conf2http.pid'
 		}
 
-if 'ip' in cfgread.items('server'):
+if 'ip' in cfgread.options('server'):
 	config['ip'] = cfgread.get('server', 'ip')
 
-if 'port' in cfgread.items('server'):
+if 'port' in cfgread.options('server'):
 	config['port'] = cfgread.get('server', 'port')
 try:
 	config['port'] = int(config['port'])
@@ -57,7 +57,7 @@ except ValueError:
 	print 'Port "%s" not an integer!' % config['port']
 	sys.exit(127)
 
-if 'ssl' in cfgread.items('server'):
+if 'ssl' in cfgread.options('server'):
 	try:
 		config['ssl'] = cfgread.getboolean('server', 'ssl')
 	except ValueError:
@@ -65,7 +65,7 @@ if 'ssl' in cfgread.items('server'):
 		sys.exit(127)
 
 if config['ssl']:
-	if 'sslcert' in cfgread.items('server'):
+	if 'sslcert' in cfgread.options('server'):
 		config['sslcert'] = cfgread.get('server', 'sslcert')
 	else:
 		print 'SSL but no certificate file specified!'
