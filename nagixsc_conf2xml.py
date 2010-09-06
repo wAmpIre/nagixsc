@@ -45,27 +45,12 @@ if not config:
 	print 'Config file "%s" could not be read!' % options.conffile
 	sys.exit(5)
 
+# Execute checks, build dict
 checks = conf2dict(config, options.host, options.service)
 
+# Convert to XML
 xmldoc = xml_from_dict(checks, options.encoding)
 
-if options.outfile.startswith('http'):
-	(headers, body) = encode_multipart(xmldoc, options.httpuser, options.httppasswd)
-
-	try:
-		response = urllib2.urlopen(urllib2.Request(options.outfile, body, headers)).read()
-	except urllib2.HTTPError, error:
-		print error
-		sys.exit(6)
-	except urllib2.URLError, error:
-		print error.reason[1]
-		sys.exit(7)
-
-	print response
-
-elif options.outfile == '-':
-	xmldoc.saveFormatFile('-', format=1)
-
-else:
-	xmldoc.saveFile(options.outfile)
+# Output
+write_xml(xmldoc, options.outfile, options.httpuser, options.httppasswd)
 

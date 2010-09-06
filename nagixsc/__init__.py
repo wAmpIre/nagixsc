@@ -13,6 +13,7 @@ import socket
 import string
 import subprocess
 import sys
+import urllib2
 
 def debug(level, verb, string):
 	if level <= verb:
@@ -254,7 +255,6 @@ def dict2out_checkresult(checks, xmltimestamp, opt_checkresultdir, opt_verb):
 
 def read_xml(options):
 	if options.url != None:
-		import urllib2
 
 		if options.httpuser and options.httppasswd:
 			passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
@@ -283,6 +283,28 @@ def read_xml(options):
 
 def read_xml_from_string(content):
 	return libxml2.parseDoc(content)
+
+
+def write_xml(xmldoc, outfile, httpuser=None, httppasswd=None):
+	if outfile.startswith('http'):
+		(headers, body) = encode_multipart(xmldoc, httpuser, httppasswd)
+
+		try:
+			response = urllib2.urlopen(urllib2.Request(outfile, body, headers)).read()
+		except urllib2.HTTPError, error:
+			print error
+			sys.exit(11)
+		except urllib2.URLError, error:
+			print error.reason[1]
+			sys.exit(12)
+
+		print response
+
+	elif outfile == '-':
+		xmldoc.saveFormatFile('-', format=1)
+
+	else:
+		xmldoc.saveFile(outfile)
 
 
 ##############################################################################
@@ -446,7 +468,7 @@ def reset_future_timestamp(timestamp, now):
 
 ##############################################################################
 
-def encode_multipart(xmldoc, httpuser, httppasswd):
+def encode_multipart(xmldoc, httpuser=None, httppasswd=None):
 	BOUNDARY = mimetools.choose_boundary()
 	CRLF = '\r\n'
 	L = []
