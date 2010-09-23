@@ -18,6 +18,7 @@ parser.add_option('-H', '', dest='host', help='Hostname/section to search for in
 parser.add_option('-D', '', dest='service', help='Service description to search for in config file (needs -H)')
 parser.add_option('-l', '', dest='httpuser', help='HTTP user name, if outfile is HTTP(S) URL')
 parser.add_option('-a', '', dest='httppasswd', help='HTTP password, if outfile is HTTP(S) URL')
+parser.add_option('-q', '', action='store_true', dest='quiet', help='Be quiet')
 parser.add_option('-v', '', action='count', dest='verb', help='Verbose output')
 
 parser.set_defaults(socket=None)
@@ -53,5 +54,7 @@ checks = livestatus2dict(s_opts, options.host, options.service)
 xmldoc = xml_from_dict(checks, options.encoding)
 
 # Output
-write_xml(xmldoc, options.outfile, options.httpuser, options.httppasswd)
+response = write_xml_or_die(xmldoc, options.outfile, options.httpuser, options.httppasswd)
+if response and not options.quiet:
+	print response
 

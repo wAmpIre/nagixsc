@@ -288,23 +288,29 @@ def read_xml_from_string(content):
 def write_xml(xmldoc, outfile, httpuser=None, httppasswd=None):
 	if outfile.startswith('http'):
 		(headers, body) = encode_multipart(xmldoc, httpuser, httppasswd)
-
-		try:
-			response = urllib2.urlopen(urllib2.Request(outfile, body, headers)).read()
-		except urllib2.HTTPError, error:
-			print error
-			sys.exit(11)
-		except urllib2.URLError, error:
-			print error.reason[1]
-			sys.exit(12)
-
-		print response
+		response = urllib2.urlopen(urllib2.Request(outfile, body, headers)).read()
+		return response
 
 	elif outfile == '-':
 		xmldoc.saveFormatFile('-', format=1)
+		return None
 
 	else:
 		xmldoc.saveFile(outfile)
+		return None
+
+
+def write_xml_or_die(xmldoc, outfile, httpuser=None, httppasswd=None):
+	try:
+		response = write_xml(xmldoc, outfile, httpuser=None, httppasswd=None)
+	except urllib2.HTTPError, error:
+		print error
+		sys.exit(11)
+	except urllib2.URLError, error:
+		print error.reason[1]
+		sys.exit(12)
+
+	return response
 
 
 ##############################################################################
