@@ -217,12 +217,13 @@ def dict2out_passive(checks, xmltimestamp, opt_pipe, opt_verb=0):
 	return count_services
 
 
-def dict2out_checkresult(checks, xmltimestamp, opt_checkresultdir, opt_verb):
+def dict2out_checkresult(checks, xmltimestamp, opt_checkresultdir, opt_verb=0):
 	count_services = 0
 	count_failed = 0
 	list_failed = []
 	chars = string.letters + string.digits
 	ctimestamp = datetime.datetime.now().ctime()
+	random.seed()
 
 	for check in checks:
 		count_services += 1
