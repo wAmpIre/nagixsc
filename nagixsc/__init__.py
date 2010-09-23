@@ -195,7 +195,6 @@ def dict2out_passive(checks, xmltimestamp, opt_pipe, opt_verb=0):
 			timestamp = check['timestamp']
 		else:
 			timestamp = xmltimestamp
-		count_services += 1
 
 		if check['service_description'] == None or check['service_description'] == '':
 			# Host check

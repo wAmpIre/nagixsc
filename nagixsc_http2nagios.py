@@ -90,7 +90,7 @@ if config['mode']=='checkresult':
 
 elif config['mode']=='passive':
 	try:
-		config['mode_pipe'] = cfgread.get('mode_passive','pipe')
+		config['pipe'] = cfgread.get('mode_passive','pipe')
 	except ConfigParser.NoOptionError:
 		print 'No "pipe" in section "mode_passive" specified!'
 		sys.exit(127)
@@ -158,16 +158,26 @@ class HTTP2NagiosHandler(MyHTTPRequestHandler):
 			doc = read_xml_from_string(xmltext)
 			checks = xml_to_dict(doc)
 
-			(count_services, count_failed, list_failed) = dict2out_checkresult(checks, xml_get_timestamp(doc), config['checkresultdir'], 0)
+			if config['mode'] == 'checkresult':
+				(count_services, count_failed, list_failed) = dict2out_checkresult(checks, xml_get_timestamp(doc), config['checkresultdir'])
 
-			if count_failed < count_services:
+				if count_failed < count_services:
+					self.send_response(200)
+					self.send_header('Content-Type', 'text/plain')
+					self.end_headers()
+					self.wfile.write('Wrote %s check results, %s failed' % (count_services, count_failed))
+					return
+				else:
+					self.http_error(501, 'Could not write all %s check results' % count_services)
+					return
+
+			elif config['mode'] == 'passive':
+				count_services = dict2out_passive(checks, xml_get_timestamp(doc), config['pipe'])
+
 				self.send_response(200)
 				self.send_header('Content-Type', 'text/plain')
 				self.end_headers()
-				self.wfile.write('Wrote %s check results, %s failed' % (count_services, count_failed))
-				return
-			else:
-				self.http_error(501, 'Could not write all %s check results' % count_services)
+				self.wfile.write('Wrote %s check results' % count_services)
 				return
 
 		else:
