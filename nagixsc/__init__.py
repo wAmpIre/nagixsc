@@ -302,7 +302,7 @@ def write_xml(xmldoc, outfile, httpuser=None, httppasswd=None):
 
 def write_xml_or_die(xmldoc, outfile, httpuser=None, httppasswd=None):
 	try:
-		response = write_xml(xmldoc, outfile, httpuser=None, httppasswd=None)
+		response = write_xml(xmldoc, outfile, httpuser, httppasswd)
 	except urllib2.HTTPError, error:
 		print error
 		sys.exit(11)
