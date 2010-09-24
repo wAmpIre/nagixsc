@@ -43,7 +43,8 @@ config = {
 			'ssl': False,
 			'sslcert': None,
 			'conf_dir': '',
-			'pidfile': '/var/run/nagixsc_conf2http.pid'
+			'pidfile': '/var/run/nagixsc_conf2http.pid',
+			'acl': False,
 		}
 
 if 'ip' in cfgread.options('server'):
@@ -61,7 +62,7 @@ if 'ssl' in cfgread.options('server'):
 	try:
 		config['ssl'] = cfgread.getboolean('server', 'ssl')
 	except ValueError:
-		print 'Value for "ssl" ("%s") not boolean!' % config['ssl']
+		print 'Value for "ssl" ("%s") not boolean!' % cfgread.get('server', 'ssl')
 		sys.exit(127)
 
 if config['ssl']:
@@ -102,6 +103,21 @@ elif config['mode']=='passive':
 else:
 	print 'Mode "%s" is neither "checkresult" nor "passive"!'
 	sys.exit(127)
+
+acls = { 'a_hl':{}, 'a_hr':{}, }
+if 'acl' in cfgread.options('server'):
+	try:
+		config['acl'] = cfgread.getboolean('server', 'acl')
+	except ValueError:
+		print 'Value for "acl" ("%s") not boolean!' % cfgread.get('server', 'acl')
+		sys.exit(127)
+if config['acl']:
+	if cfgread.has_section('acl_allowed_hosts_list'):
+		for user in cfgread.options('acl_allowed_hosts_list'):
+			acls['a_hl'][user] = [ah.lstrip().rstrip() for ah in cfgread.get('acl_allowed_hosts_list',user).split(',')]
+	if cfgread.has_section('acl_allowed_hosts_re'):
+		for user in cfgread.options('acl_allowed_hosts_re'):
+			acls['a_hr'][user] = re.compile(cfgread.get('acl_allowed_hosts_re',user))
 
 
 
@@ -158,6 +174,19 @@ class HTTP2NagiosHandler(MyHTTPRequestHandler):
 			doc = read_xml_from_string(xmltext)
 			checks = xml_to_dict(doc)
 
+			if config['acl']:
+				new_checks = []
+				for check in checks:
+					if authdata[0] in acls['a_hl'] and check['host_name'] in acls['a_hl'][authdata[0]]:
+						new_checks.append(check)
+					elif authdata[0] in acls['a_hr'] and (acls['a_hr'][authdata[0]]).search(check['host_name']):
+						new_checks.append(check)
+
+				count_acl_failed = len(checks) - len(new_checks)
+				checks = new_checks
+			else:
+				count_acl_failed = None
+
 			if config['mode'] == 'checkresult':
 				(count_services, count_failed, list_failed) = dict2out_checkresult(checks, xml_get_timestamp(doc), config['checkresultdir'])
 
@@ -165,7 +194,10 @@ class HTTP2NagiosHandler(MyHTTPRequestHandler):
 					self.send_response(200)
 					self.send_header('Content-Type', 'text/plain')
 					self.end_headers()
-					self.wfile.write('Wrote %s check results, %s failed' % (count_services, count_failed))
+					statusmsg = 'Wrote %s check results, %s failed' % (count_services, count_failed)
+					if count_acl_failed != None:
+						statusmsg += ' - %s check results failed ACL check' % count_acl_failed
+					self.wfile.write(statusmsg)
 					return
 				else:
 					self.http_error(501, 'Could not write all %s check results' % count_services)
