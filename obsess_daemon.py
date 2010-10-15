@@ -28,6 +28,7 @@ def read_obsess_file(filename):
 	checks = []
 	f = open(filename)
 	print 'Read ' + filename
+	count_lines = 0
 
 	for line in f:
 		if line.startswith('LASTSERVICECHECK'):
@@ -41,7 +42,9 @@ def read_obsess_file(filename):
 				checks.append({'host_name':m.group(2), 'service_description':None, 'returncode':m.group(3), 'output':'\n'.join(m.group(4,5)), 'timestamp':m.group(1)})
 		else:
 			print 'FAIL: ' + line
+		count_lines += 1
 
+	print "Read %s lines" % count_lines
 	f.close()
 	return checks
 
@@ -50,7 +53,7 @@ def read_obsess_file(filename):
 
 if len(sys.argv) != 4:
 	print 'Please call script as: "%s http://SERVER:PORT/ username password"\n' % sys.argv[0]
-	print '... with "http://SERVER:PORT/" your conf2http-URL'
+	print '... with "http://SERVER:PORT/" your http2nagios-URL'
 	print '... and "username"/"password" authentication data for it'
 	sys.exit(1)
 
