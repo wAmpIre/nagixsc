@@ -198,10 +198,10 @@ def dict2out_passive(checks, xmltimestamp, opt_pipe, opt_verb=0):
 
 		if check['service_description'] == None or check['service_description'] == '':
 			# Host check
-			line = FORMAT_HOST % (now, check['host_name'], check['returncode'], check['output'].replace('\n', '\\n'))
+			line = FORMAT_HOST % (timestamp, check['host_name'], check['returncode'], check['output'].replace('\n', '\\n'))
 		else:
 			# Service check
-			line =  FORMAT_SERVICE % (now, check['host_name'], check['service_description'], check['returncode'], check['output'].replace('\n', '\\n'))
+			line =  FORMAT_SERVICE % (timestamp, check['host_name'], check['service_description'], check['returncode'], check['output'].replace('\n', '\\n'))
 
 		if pipe:
 			pipe.write(line + '\n')
@@ -541,7 +541,7 @@ def daemonize(pidfile=None, stdin='/dev/null', stdout='/dev/null', stderr='/dev/
 
 ##############################################################################
 
-class MyHTTPServer(SocketServer.ForkingMixIn, BaseHTTPServer.HTTPServer):
+class MyHTTPServer(BaseHTTPServer.HTTPServer):
 	def __init__(self, server_address, HandlerClass, ssl=False, sslpemfile=None):
 		if ssl:
 			# FIXME: SSL is in Py2.6
