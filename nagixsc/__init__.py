@@ -70,7 +70,7 @@ def read_inifile(inifile):
 def exec_timeout_handler(signum, frame):
 	raise ExecTimeoutError
 
-def exec_check(host_name, service_descr, cmdline, timeout=None, timeout_returncode=2):
+def exec_check(host_name, service_descr, cmdline, cmdprefix='', timeout=None, timeout_returncode=2):
 	cmdarray = shlex.split(cmdline)
 
 	check = {}
@@ -84,6 +84,12 @@ def exec_check(host_name, service_descr, cmdline, timeout=None, timeout_returnco
 
 	check['commandline'] = cmdline
 	check['command'] = cmdarray[0].split(os.path.sep)[-1]
+
+	if cmdprefix:
+		check['fullcommandline'] = cmdprefix + ' ' + cmdline
+		cmdarray = shlex.split(cmdprefix) + cmdarray
+	else:
+		check['fullcommandline'] = cmdline
 
 	if timeout:
 		signal.signal(signal.SIGALRM, exec_timeout_handler)
@@ -137,6 +143,12 @@ def conf2dict(config, opt_host=None, opt_service=None):
 	except (ConfigParser.NoSectionError, ConfigParser.NoOptionError):
 		add_pnp4nagios_template_hint = False
 
+	# Read "command_prefix" from "[nagixsc]", default "" (empty string)
+	try:
+		cmdprefix_conffile = config.get('nagixsc','command_prefix')
+	except (ConfigParser.NoSectionError, ConfigParser.NoOptionError):
+		cmdprefix_conffile = ''
+
 	# Sections are Hosts (not 'nagixsc'), options in sections are Services
 	hosts = config.sections()
 	if 'nagixsc' in hosts:
@@ -158,10 +170,16 @@ def conf2dict(config, opt_host=None, opt_service=None):
 
 
 		services = config.options(host)
+		# Look for host/section specific "command_prefix"
+		if '_command_prefix' in services:
+			cmdprefix = config.get(host, '_command_prefix')
+		else:
+			cmdprefix = cmdprefix_conffile
+
 		# Look for host check
 		if '_host_check' in services and not opt_service:
 			cmdline = config.get(host, '_host_check')
-			check = exec_check(host_name, None, cmdline, timeout, timeout_returncode)
+			check = exec_check(host_name, None, cmdline, cmdprefix, timeout, timeout_returncode)
 			if add_pnp4nagios_template_hint and '|' in check['output']:
 				check['output'] += ' [%s]' % check['command']
 			checks.append(check)
@@ -179,7 +197,7 @@ def conf2dict(config, opt_host=None, opt_service=None):
 			if service[0] != '_':
 				cmdline = config.get(host, service)
 
-				check = exec_check(host_name, service, cmdline, timeout, timeout_returncode)
+				check = exec_check(host_name, service, cmdline, cmdprefix, timeout, timeout_returncode)
 				if add_pnp4nagios_template_hint and '|' in check['output']:
 					check['output'] += ' [%s]' % check['command']
 				checks.append(check)
