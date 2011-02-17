@@ -4,6 +4,7 @@
 import datetime
 import libxml2
 import optparse
+import socket
 import sys
 
 parser = optparse.OptionParser()
@@ -39,7 +40,7 @@ HOSTTEMPL='''define host {
 	use		templ_host_default
 
 	host_name	%(host_name)s
-	address		127.0.0.1
+	address		%(address)s
 }
 '''
 
@@ -103,6 +104,10 @@ if not status:
 checks = xml_to_dict(doc, options.verb, options.host, options.service)
 
 
+# Set default socket options
+if hasattr(socket, 'setdefaulttimeout'):
+	socket.setdefaulttimeout(2)
+
 # Loop over check results and search for new hosts and new services
 foundhosts = []
 
@@ -111,6 +116,10 @@ for check in checks:
 		foundhosts.append(check['host_name'])
 
 		if 'hosts' in options.output:
+			try:
+				check['address'] = socket.gethostbyname(check['host_name'])
+			except socket.gaierror:
+				check['address'] = '127.0.0.1'
 			print HOSTTEMPL % check
 
 	if check['service_description'] and 'services' in options.output:
