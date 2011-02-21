@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 #import base64
-import datetime
 import libxml2
 import optparse
 import socket

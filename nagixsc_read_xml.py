@@ -1,10 +1,10 @@
 #!/usr/bin/python
 
 #import base64
-import datetime
 import libxml2
 import optparse
 import sys
+import time
 
 parser = optparse.OptionParser()
 
@@ -34,7 +34,7 @@ from nagixsc import *
 
 ##############################################################################
 
-now = int(datetime.datetime.now().strftime('%s'))
+now = int(time.time())
 
 # Get URL or file
 doc = read_xml(options)

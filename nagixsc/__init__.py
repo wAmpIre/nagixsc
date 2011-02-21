@@ -2,7 +2,6 @@ import BaseHTTPServer
 import ConfigParser
 import SocketServer
 import base64
-import datetime
 import libxml2
 import mimetools
 import os
@@ -13,6 +12,7 @@ import socket
 import string
 import subprocess
 import sys
+import time
 import urllib2
 
 def debug(level, verb, string):
@@ -116,7 +116,7 @@ def exec_check(host_name, service_descr, cmdline, cmdprefix='', timeout=None, ti
 		except OSError:
 			pass
 
-	check['timestamp'] = datetime.datetime.now().strftime('%s')
+	check['timestamp'] = str(long(time.time()))
 	return check
 
 
@@ -211,7 +211,7 @@ def dict2out_passive(checks, xmltimestamp, opt_pipe, opt_verb=0):
 	FORMAT_HOST = '[%s] PROCESS_HOST_CHECK_RESULT;%s;%s;%s'
 	FORMAT_SERVICE = '[%s] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%s;%s'
 	count_services = 0
-	now = datetime.datetime.now().strftime('%s')
+	now = str(long(time.time()))
 
 	# Prepare
 	if opt_verb <= 2:
@@ -252,7 +252,7 @@ def dict2out_checkresult(checks, xmltimestamp, opt_checkresultdir, opt_verb=0):
 	count_failed = 0
 	list_failed = []
 	chars = string.letters + string.digits
-	ctimestamp = datetime.datetime.now().ctime()
+	ctimestamp = time.ctime()
 	random.seed()
 
 	for check in checks:
@@ -373,7 +373,7 @@ def xml_get_timestamp(xmldoc):
 
 def xml_to_dict(xmldoc, verb=0, hostfilter=None, servicefilter=None):
 	checks = []
-	now = int(datetime.datetime.now().strftime('%s'))
+	now = long(time.time())
 	filetimestamp = reset_future_timestamp(xml_get_timestamp(xmldoc), now)
 
 	if hostfilter:
@@ -449,7 +449,7 @@ def xml_from_dict(checks, encoding='base64'):
 	xmldoc = libxml2.newDoc('1.0')
 	xmlroot = xmldoc.newChild(None, 'nagixsc', None)
 	xmlroot.setProp('version', '1.0')
-	xmltimestamp = xmlroot.newChild(None, 'timestamp', datetime.datetime.now().strftime('%s'))
+	xmltimestamp = xmlroot.newChild(None, 'timestamp', str(long(time.time())))
 
 	for entry in db:
 		check = entry[1]

@@ -1,11 +1,11 @@
 #!/usr/bin/python
 
 #import base64
-import datetime
 import libxml2
 import optparse
 import os
 import sys
+import time
 
 NAGIOSCMDs = [ '/usr/local/nagios/var/rw/nagios.cmd', '/var/lib/nagios3/rw/nagios.cmd', ]
 CHECKRESULTDIRs = [ '/usr/local/nagios/var/spool/checkresults', '/var/lib/nagios3/spool/checkresults', ]
@@ -93,7 +93,7 @@ elif options.mode == 'active':
 doc = read_xml(options)
 
 # Now timestamp AFTER getting the XML file
-now = int(datetime.datetime.now().strftime('%s'))
+now = long(time.time())
 
 
 # Check XML against DTD
