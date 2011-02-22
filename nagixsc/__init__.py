@@ -574,21 +574,27 @@ def daemonize(pidfile=None, stdin='/dev/null', stdout='/dev/null', stderr='/dev/
 
 class MyHTTPServer(SocketServer.ForkingMixIn, BaseHTTPServer.HTTPServer):
 	def __init__(self, server_address, HandlerClass, ssl=False, sslpemfile=None):
-		if ssl:
-			# FIXME: SSL is in Py2.6
-			try:
-				from OpenSSL import SSL
-			except:
-				print 'No Python OpenSSL wrapper/bindings found!'
-				sys.exit(127)
+		SocketServer.BaseServer.__init__(self, server_address, HandlerClass)
 
-			SocketServer.BaseServer.__init__(self, server_address, HandlerClass)
-			context = SSL.Context(SSL.SSLv23_METHOD)
-			context.use_privatekey_file (sslpemfile)
-			context.use_certificate_file(sslpemfile)
-			self.socket = SSL.Connection(context, socket.socket(self.address_family, self.socket_type))
+		if ssl:
+			try:
+				import ssl
+				self.socket = ssl.wrap_socket(socket.socket(self.address_family, self.socket_type), keyfile=sslpemfile, certfile=sslpemfile)
+
+			except:
+
+				try:
+					from OpenSSL import SSL
+				except:
+					print 'No Python SSL or OpenSSL wrapper/bindings found!'
+					sys.exit(127)
+
+				context = SSL.Context(SSL.SSLv23_METHOD)
+				context.use_privatekey_file (sslpemfile)
+				context.use_certificate_file(sslpemfile)
+				self.socket = SSL.Connection(context, socket.socket(self.address_family, self.socket_type))
+
 		else:
-			SocketServer.BaseServer.__init__(self, server_address, HandlerClass)
 			self.socket = socket.socket(self.address_family, self.socket_type)
 
 		self.server_bind()
