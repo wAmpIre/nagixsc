@@ -572,7 +572,12 @@ def daemonize(pidfile=None, stdin='/dev/null', stdout='/dev/null', stderr='/dev/
 
 ##############################################################################
 
-class MyHTTPServer(SocketServer.ForkingMixIn, BaseHTTPServer.HTTPServer):
+if 'ForkingMixIn' in SocketServer.__dict__:
+	MixInClass = SocketServer.ForkingMixIn
+else:
+	MixInClass = SocketServer.ThreadingMixIn
+
+class MyHTTPServer(MixInClass, BaseHTTPServer.HTTPServer):
 	def __init__(self, server_address, HandlerClass, ssl=False, sslpemfile=None):
 		SocketServer.BaseServer.__init__(self, server_address, HandlerClass)
 
