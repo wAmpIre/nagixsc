@@ -3,6 +3,23 @@ Nag(ix)SC
 
 Transport of Nagios™/Icinga check results over HTTP or any other way *you* like!
 
+Nag(ix)SC is a replacement for NRPE (Nagios Remote Plugin Executor) and NSCA
+(Nagios Service Check Acceptor) supporting multiple transport mechanisms like
+HTTP(S), SSH, rsync, or whatever you like. It may be used to execute Nagios/
+Icinga plugins on a remote host or to send service check results to a central
+monitoring server.
+ .
+Nag(ix)SC includes simple HTTP server implementations to send and receive
+check results and execute plugins. HTTP is the preferred way to transfer the
+generated data because of the following benefits:
+
+  * simple protocol with many existing support tools (e.g. curl) and libraries
+    for basically any programming and scripting language
+  * support for relaying/forwarding through (reverse-)proxies
+  * support for authorization and authentication
+  * support for encryption (HTTPS)
+  * filtering possibilities
+
 
 URLs:
 -----
