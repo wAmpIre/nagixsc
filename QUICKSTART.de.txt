@@ -130,7 +130,7 @@ Nag(ix)SC OK - Check results are 25077576 seconds old
 Nag(ix)SC OK - Wrote checkresult files for 6 services
 %
 
-./nagixsc_xml2nagios.py -O active -f /tmp/nagixsc.xml -D Disk_Root
+% ./nagixsc_xml2nagios.py -O active -f /tmp/nagixsc.xml -D Disk_Root
 DISK OK - free space: / 2167 MB (22% inode=97%);| /=7353MB;8568;9044;0;9520
 %
 

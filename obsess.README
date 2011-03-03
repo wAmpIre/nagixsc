@@ -7,7 +7,6 @@ obsess_over_hosts=1
 ochp_command=ochp2out
 
 
-
 commands:
 =========
 
@@ -22,32 +21,31 @@ define command {
 }
 
 
-Vorteile:
-=========
+Advantages/benefits:
+====================
 
-- Anders als in der originalen Dokumentation wird NICHT noch eine Shell
-  gestartet, die die Return-Codes analysiert und dann mit Hilfe von "printf"
-  den String formatiert.
-- Das Original-Skript ruft "send_nsca" direkt auf. Dies wiederum blockiert den
-  Nagios so lange, bis das NSCA-Netzwerkpaket verschickt werden konnte (Man
-  bedenke das Timeout, wenn der Server nicht erreicht werden kann).
-  Das Wegschreiben der Spool-Datei hier macht die von Nagios sowieso geforkte
-  und gestartete Shell. Die Blockierung des Nagios-Prozess (sollte) ist somit
-  minimal.
-- Nagios schreibt mehrere Check-Ergebniss praktisch auf einmal weg (vgl.
-  Zeitstempel). NSCA schickt alle Pakete einzeln (für jedes einen
-  TCP-Handshake...), Nag(ix)SC packt die Ergebnisse aus einem Spool-File in
-  ein XML und schickt mehrere bis viele Check-Ergebnisse auf einmal los.
-- Das Senden der XML-Files passiert unabhängig von Nagios durch einen eigenen
-  Prozess ("obsess_daemon.py")
+- Do NOT start a shell to analyse the return-code and then format a string
+  using "printf" as documented in the original documentation.
+- Block the Nagios process for a minimum amount of time. The original script
+  calls "send_nsca" directly, thus blocking Nagios until the NSCA network
+  packet has been sent (which might include a timeout in case the server is
+  unreachable). Here, we only write a single spool-file from the shell started
+  by Nagios.
+- Send multiple check results at once. Nagios writes multiple check results
+  basically at the same time. While NSCA uses one network connection for every
+  single one of those (which requires a TCP handshake, etc. for each of them),
+  Nag(ix)SC creates a single XML file from all entries in the spool file.
+- A separate, stand-alone process ("obsess_daemon.py") takes care of sending
+  the XML file.
 
 
-Hinweis:
+Caveats:
 ========
 
-- "obsess_daemon.py" ist noch kein richtiger Daemon, einfach an der
-  Kommandozeile start und gut laufen lassen (Debug-Ausgaben!)
-- Zum "auf die Finger guggen":
+- "obsess_daeon.py" is not a real daemon yet. Start it in a terminal (and
+  watch the debugging output).
+- Watch what's going on:
   % cd /tmp/nagixsc.spool
-  % watch -n2 "cat */*[0-9] |wc -l; (for F in xmlout/*; do ~/src/nagixsc/nagixsc_read_xml.py -f \$F; done)|grep -c RetCode"
+  % watch -n2 "cat */*[0-9] | wc -l; (for F in xmlout/*; do
+      ~/src/nagixsc/nagixsc_read_xml.py -f \$F; done) | grep -c RetCode"
 

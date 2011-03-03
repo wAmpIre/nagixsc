@@ -1,0 +1,161 @@
+===========
+00. Content
+===========
+
+- 01. On the remote host
+- 02. On the Nagios host
+
+
+======================
+01. On the remote host
+======================
+
+---------------------------
+01.01. Create a "conf" file
+---------------------------
+
+Disclaimer:
+For now, we use a INI-like format. This may change in the future!
+
+You may use "sample-configs/conf/nagixsc_debian.conf" (Debian setup) or
+"sample-configs/conf/nagixsc_usrlocal.conf" (installed from source to
+/usr/local/nagios/) as templates.
+
+One section for each monitored host is required. The section name (in square
+brackets) is the Nagios hostname. The section includes service descriptions
+and the commands to be executed.
+
+Option names starting with an underscore are considered Nag(ix)SC-internal
+definitions and, thus, are not treated as services. The following internal
+options are available:
+
+- "_host_name": Set the hostname to the one specified, overwriting the section
+                name.
+
+The section named "[nagixsc]" is reserved for future extensions!
+
+
+----------------------------------------------
+01.02. Executing checks, Creating the XML file
+----------------------------------------------
+
+For debugging and testing purposes, create the XML file on the command line:
+
+% ./nagixsc_conf2xml.py -e plain -c sample-configs/conf/nagixsc.conf
+
+The switch "-e plain" disables encoding of the data to get human-readable
+output. This should not be used in production!
+
+The output will give a good idea about how Nag(ix)SC works internally. Now,
+you should go ahead and create a small custom config file ;-)
+
+Then, create an XML file suitable for further processing:
+
+% ./nagixsc_conf2xml.py -c sample-configs/conf/nagixsc.conf -o /tmp/nagixsc.xml
+
+This XML file may be made published by a web-server to be queried from Nagios.
+
+
+----------------------------
+01.03. Checking the XML file
+----------------------------
+
+Use "nagixsc_read_xml.py" to dump the content of an Nag(ix)SC XML file:
+
+% ./nagixsc_read_xml.py -f /tmp/nagixsc.xml
+
+The content will be displayed as one block for each check or as formatted
+Python dictionary.
+
+
+======================
+02. On the Nagios host
+======================
+
+------------------------------------
+02.01. Transfer of the check results
+------------------------------------
+
+There are two ways to access the check results: either by making them
+available in the filesystem ("-f") or by accessing a web-server ("-u"). In the
+examples, we'll use the former approach.
+
+The tool "nagixsc_xml2nagios.py" supports five different modes of operation,
+specified by the "-O" switch:
+
+- "passive": Submit the results as passive service check to Nagios using the
+             Nagios command pipe. No output is generated making it suitable
+             for processing by cron.
+
+- "passive_check": Submit passive service checks using the output format and
+                   return code of Nagios plugins (one line of output and
+                   appropriate exit code).
+
+- "checkresult": Dump the results to the Nagios "checkresults" directory. This
+                 is also suitable for cron.
+
+- "checkresult_check": Same as "checkresult" but behave like a Nagios plugin
+                       (one line of output and appropriate exit code).
+
+- "active": Look for a host/service tuple in the XML file and behave like a
+            Nagios plugin.
+
+Examples:
+
+% ./nagixsc_xml2nagios.py -O passive -f /tmp/nagixsc.xml
+%
+
+% ./nagixsc_xml2nagios.py -O passive_check -f /tmp/nagixsc.xml
+Nag(ix)SC OK - Check results are 25077576 seconds old
+%
+
+% ./nagixsc_xml2nagios.py -O checkresult -f /tmp/nagixsc.xml
+%
+
+% ./nagixsc_xml2nagios.py -O checkresult_check -f /tmp/nagixsc.xml
+Nag(ix)SC OK - Wrote checkresult files for 6 services
+%
+
+% ./nagixsc_xml2nagios.py -O active -f /tmp/nagixsc.xml -D Disk_Root
+DISK OK - free space: / 2167 MB (22% inode=97%);| /=7353MB;8568;9044;0;9520
+%
+
+Nag(ix)SC tries to auto-detect the location of "nagios.cmd" and the
+"checkresult" directory. If this does not work, you can specify the locations
+using the "-p" (pipe) and "-r" (resultdir) options.
+
+For testing and debugging, create temporary files and have a look at the
+generated output:
+
+% touch /tmp/nagixsc.cmd # or: mkdir /tmp/nagixsc.result
+% nagixsc_xm2nagios.py -p /tmp/nagixsc.cmd [...]
+# or: nagixsc_xm2nagios.py -r /tmp/nagixsc.result
+
+--------------------
+02.02. Outdated data
+--------------------
+
+Data older than four hours (14400 seconds) is considered to be outdated by
+"nagixsc_xml2nagios.py" and marked using "Nag(ix)SC: Check result is XX(>1440)
+seconds old". This behavior may be customized using the following options:
+
+- "-s SEC": specify the maximum age after which to consider data outdated
+
+- "-m": let the check return the status UNKNOWN when encountering outdated
+        data
+
+-------------------------
+02.03. Further parameters
+-------------------------
+
+- "-S": Verify the XML file using the specified DTD file. Nag(ix)SC ships the
+        file "xml/nagixsc.dtd" for this purpose (no guarantees whatsoever,
+        though ;-))
+
+- "-H": Filter the XML file for the specified hostname and ignore checks for
+        different hosts. This may be combined with all variants.
+
+- "-D": Filter the XML file for the specified (service) description. If
+        combined with "-H", look for the given host/service tuple. Else, use
+        the first host specified in the XML file.
+

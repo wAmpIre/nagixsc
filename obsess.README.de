@@ -1,0 +1,53 @@
+nagios.cfg:
+===========
+
+obsess_over_services=1
+ocsp_command=ocsp2out
+obsess_over_hosts=1
+ochp_command=ochp2out
+
+
+
+commands:
+=========
+
+define command {
+  command_name  ocsp2out
+  command_line  echo >>/tmp/nagixsc.spool/new/$TIMET$ LASTSERVICECHECK::$LASTSERVICECHECK$ HOSTNAME::\'$HOSTNAME$\' SERVICEDESC::\'$SERVICEDESC$\' SERVICESTATEID::$SERVICESTATEID$ SERVICEOUTPUT::\'$SERVICEOUTPUT$\' LONGSERVICEOUTPUT::\'$LONGSERVICEOUTPUT$\'
+}
+
+define command {
+  command_name  ochp2out
+  command_line  echo >>/tmp/nagixsc.spool/new/$TIMET$ LASTHOSTCHECK::$LASTHOSTCHECK$ HOSTNAME::\'$HOSTNAME$\' HOSTSTATEID::$HOSTSTATEID$ HOSTOUTPUT::\'$HOSTOUTPUT$\' LONGHOSTOUTPUT::\'$LONGHOSTOUTPUT$\'
+}
+
+
+Vorteile:
+=========
+
+- Anders als in der originalen Dokumentation wird NICHT noch eine Shell
+  gestartet, die die Return-Codes analysiert und dann mit Hilfe von "printf"
+  den String formatiert.
+- Das Original-Skript ruft "send_nsca" direkt auf. Dies wiederum blockiert den
+  Nagios so lange, bis das NSCA-Netzwerkpaket verschickt werden konnte (man
+  bedenke das Timeout, wenn der Server nicht erreicht werden kann).
+  Das Wegschreiben der Spool-Datei hier macht die von Nagios sowieso geforkte
+  und gestartete Shell. Die Blockierung des Nagios-Prozess (sollte) ist somit
+  minimal.
+- Nagios schreibt mehrere Check-Ergebniss praktisch auf einmal weg (vgl.
+  Zeitstempel). NSCA schickt alle Pakete einzeln (für jedes einen
+  TCP-Handshake...), Nag(ix)SC packt die Ergebnisse aus einem Spool-File in
+  ein XML-Datei und schickt mehrere bis viele Check-Ergebnisse auf einmal los.
+- Das Senden der XML-Files passiert unabhängig von Nagios durch einen eigenen
+  Prozess ("obsess_daemon.py").
+
+
+Hinweise:
+=========
+
+- "obsess_daemon.py" ist noch kein richtiger Daemon; einfach an der
+  Kommandozeile starten und laufen lassen (Debug-Ausgaben!)
+- Zum "auf die Finger guggen":
+  % cd /tmp/nagixsc.spool
+  % watch -n2 "cat */*[0-9] |wc -l; (for F in xmlout/*; do ~/src/nagixsc/nagixsc_read_xml.py -f \$F; done)|grep -c RetCode"
+
