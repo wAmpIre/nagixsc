@@ -1,4 +1,23 @@
 #! /bin/sh
+#
+# nagixsc_http2nagios - start and stop the Nag(ix)SC HTTP server
+# http://oss.teamix.org/projects/nagixsc
+#
+# Copyright (C) 2010 Sven Velt <sv@teamix.net>
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; only version 2 of the License is applicable.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+#
 ### BEGIN INIT INFO
 # Provides:          nagixsc_conf2http
 # Required-Start:    $local_fs $remote_fs
@@ -8,8 +27,6 @@
 # Short-Description: Nag(IX)SC HTTP Pull Server
 # Description:       Nag(IX)SC HTTP Pull Server
 ### END INIT INFO
-
-# Author: Sven Velt <sv@teamix.net>
 
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
