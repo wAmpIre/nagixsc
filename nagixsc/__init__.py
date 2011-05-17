@@ -316,10 +316,10 @@ def read_xml(options):
 			response = urllib2.urlopen(options.url)
 		except urllib2.HTTPError, error:
 			print error
-			sys.exit(0)
+			sys.exit(1)
 		except urllib2.URLError, error:
 			print error.reason[1]
-			sys.exit(0)
+			sys.exit(1)
 
 		doc = libxml2.parseDoc(response.read())
 		response.close()
