@@ -304,16 +304,20 @@ def dict2out_checkresult(checks, xmltimestamp, opt_checkresultdir, opt_verb=0):
 
 def read_xml(options):
 	if options.url != None:
+		request = urllib2.Request(options.url)
 
 		if options.httpuser and options.httppasswd:
-			passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
-			passman.add_password(None, options.url, options.httpuser, options.httppasswd)
-			authhandler = urllib2.HTTPBasicAuthHandler(passman)
-			opener = urllib2.build_opener(authhandler)
-			urllib2.install_opener(opener)
+			if options.httpforceauth:
+				request.add_header('Authorization', 'Basic ' + base64.b64encode(options.httpuser + ':' + options.httppasswd))
+			else:
+				passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
+				passman.add_password(None, options.url, options.httpuser, options.httppasswd)
+				authhandler = urllib2.HTTPBasicAuthHandler(passman)
+				opener = urllib2.build_opener(authhandler)
+				urllib2.install_opener(opener)
 
 		try:
-			response = urllib2.urlopen(options.url)
+			response = urllib2.urlopen(request)
 		except urllib2.HTTPError, error:
 			print error
 			sys.exit(1)
