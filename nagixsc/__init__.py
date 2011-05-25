@@ -386,7 +386,7 @@ def xml_check_version(xmldoc):
 
 def xml_get_timestamp(xmldoc):
 	try:
-		timestamp = int(xmldoc.xpathNewContext().xpathEval('/nagixsc/timestamp')[0].get_content())
+		timestamp = long(xmldoc.xpathNewContext().xpathEval('/nagixsc/timestamp')[0].get_content())
 	except:
 		return False
 
@@ -421,7 +421,7 @@ def xml_to_dict(xmldoc, verb=0, hostfilter=None, servicefilter=None):
 			output    = None
 
 		if host.xpathEval('timestamp'):
-			timestamp = reset_future_timestamp(int(host.xpathEval('timestamp')[0].get_content()), now)
+			timestamp = reset_future_timestamp(long(host.xpathEval('timestamp')[0].get_content()), now)
 		else:
 			timestamp = filetimestamp
 
@@ -448,7 +448,7 @@ def xml_to_dict(xmldoc, verb=0, hostfilter=None, servicefilter=None):
 			output   = decode(xmloutput.get_content(), xmloutput.prop('encoding')).rstrip()
 
 			try:
-				timestamp = reset_future_timestamp(int(service.xpathEval('timestamp')[0].get_content()), now)
+				timestamp = reset_future_timestamp(long(service.xpathEval('timestamp')[0].get_content()), now)
 			except:
 				timestamp = filetimestamp
 
