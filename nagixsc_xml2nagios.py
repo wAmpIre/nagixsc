@@ -109,12 +109,17 @@ elif options.mode == 'active':
 
 ##############################################################################
 
+# Get start time
+starttime = time.time()
+
 # Get URL or file
 doc = read_xml(options)
 
 # Now timestamp AFTER getting the XML file
 now = long(time.time())
 
+# Calculate elapsed time
+elapsedtime = time.time() - starttime
 
 # Check XML against DTD
 if options.schemacheck:
@@ -143,8 +148,8 @@ if not filetimestamp:
 	print 'No timestamp found in XML file, exiting because of invalid XML data...'
 	sys.exit(127)
 
-timedelta = int(now) - int(filetimestamp)
-debug(1, options.verb, 'Age of XML file: %s seconds, max allowed: %s seconds' % (timedelta, options.seconds))
+fileage = now - filetimestamp
+debug(1, options.verb, 'Age of XML file: %s seconds, max allowed: %s seconds' % (fileage, options.seconds))
 
 
 # Put XML to Python dict
@@ -164,15 +169,16 @@ if options.mode == 'passive' or options.mode == 'passive_check':
 	if options.mode == 'passive_check':
 		returncode   = 0
 		returnstring = 'OK'
-		output       = '%s check results written which are %s seconds old' % (count_services, (now-filetimestamp))
+		output       = '%s check results written which are %s seconds old' % (count_services, fileage)
+		perfdata     = 'runtime=%.3fs;;;; services=%.0f;;;;' % (elapsedtime, count_services)
 
 		if options.markold:
-			if (now - filetimestamp) > options.seconds:
+			if fileage > options.seconds:
 				returnstring = 'WARNING'
-				output = '%s check results written, which are %s(>%s) seconds old' % (count_services, (now-filetimestamp), options.seconds)
+				output = '%s check results written, which are %s(>%s) seconds old' % (count_services, fileage, options.seconds)
 				returncode = 1
 
-		print 'Nag(ix)SC %s - %s' % (returnstring, output)
+		print 'Nag(ix)SC %s - %s|%s' % (returnstring, output, perfdata)
 		sys.exit(returncode)
 
 # MODE: checkresult: "checkresult", "checkresult_check"
@@ -192,6 +198,7 @@ elif options.mode.startswith('checkresult'):
 	elif options.mode == 'checkresult_check':
 		returnstring = ''
 		output       = ''
+		perfdata     = 'runtime=%.3fs;;;; services=%.0f;;;;' % (elapsedtime, count_services)
 		if count_failed == 0:
 			returnstring = 'OK'
 			returncode   = 0
@@ -205,7 +212,7 @@ elif options.mode.startswith('checkresult'):
 			returncode   = 1
 			output       = 'Could not write %s out of %s checkresult files!' % (count_failed, count_services)
 
-		print 'Nag(ix)SC %s - %s' % (returnstring, output)
+		print 'Nag(ix)SC %s - %s|%s' % (returnstring, output, perfdata)
 		sys.exit(returncode)
 
 # MODE: active
