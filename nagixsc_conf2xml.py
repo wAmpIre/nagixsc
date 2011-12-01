@@ -2,7 +2,7 @@
 #
 # Nag(ix)SC -- nagixsc_conf2xml.py
 #
-# Copyright (C) 2009-2010 Sven Velt <sv@teamix.net>
+# Copyright (C) 2009-2011 Sven Velt <sv@teamix.net>
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -24,23 +24,25 @@ import urllib2
 
 ##############################################################################
 
-from nagixsc import *
+import nagixsc
 
 ##############################################################################
+
+checkresults = nagixsc.Checkresults()
 
 parser = optparse.OptionParser()
 
 parser.add_option('-c', '', dest='conffile', help='Config file')
 parser.add_option('-o', '', dest='outfile', help='Output file name, "-" for STDOUT or HTTP POST URL')
-parser.add_option('-e', '', dest='encoding', help='Encoding ("%s")' % '", "'.join(available_encodings()) )
 parser.add_option('-H', '', dest='host', help='Hostname/section to search for in config file')
 parser.add_option('-D', '', dest='service', help='Service description to search for in config file (needs -H)')
 parser.add_option('-l', '', dest='httpuser', help='HTTP user name, if outfile is HTTP(S) URL')
 parser.add_option('-a', '', dest='httppasswd', help='HTTP password, if outfile is HTTP(S) URL')
+parser.add_option('-e', '', dest='encoding', help='Encoding ("%s")' % '", "'.join(checkresults.available_encodings) )
 parser.add_option('-q', '', action='store_true', dest='quiet', help='Be quiet')
 parser.add_option('-v', '', action='count', dest='verb', help='Verbose output')
 
-parser.set_defaults(conffile='nagixsc.conf')
+parser.set_defaults(conffile=None)
 parser.set_defaults(outfile='-')
 parser.set_defaults(encoding='base64')
 parser.set_defaults(host=None)
@@ -51,27 +53,44 @@ parser.set_defaults(verb=0)
 
 ##############################################################################
 
-if not check_encoding(options.encoding):
+# Check if conffile specified
+if not options.conffile:
+	print 'Need a conf file! Please specify one with "-c"!'
+	sys.exit(3)
+
+# Check encoding type
+if not checkresults.check_encoding(options.encoding):
 	print 'Wrong encoding method "%s"!' % options.encoding
-	print 'Could be one of: "%s"' % '", "'.join(available_encodings())
-	sys.exit(127)
+	print 'Could be one of: "%s"' % '", "'.join(checkresults.available_encodings)
+	sys.exit(3)
 
 ##############################################################################
 
-config = read_inifile(options.conffile)
+# Try to read conffile
+config = nagixsc.read_inifile(options.conffile)
 
 if not config:
 	print 'Config file "%s" could not be read!' % options.conffile
-	sys.exit(5)
+	sys.exit(3)
+
+# Put necessary options to checkresults
+checkresults.options['outfile'] = options.outfile
+checkresults.options['hostfilter'] = options.host
+checkresults.options['servicefilter'] = options.service
+checkresults.options['httpuser'] = options.httpuser
+checkresults.options['httppasswd'] = options.httppasswd
+checkresults.options['encoding'] = options.encoding
 
 # Execute checks, build dict
-checks = conf2dict(config, options.host, options.service)
-
-# Convert to XML
-xmldoc = xml_from_dict(checks, options.encoding)
+checkresults.conf2dict(config)
 
 # Output
-response = write_xml_or_die(xmldoc, options.outfile, options.httpuser, options.httppasswd)
-if response and not options.quiet:
+(status, response) = checkresults.write_xml()
+
+# Print error message or status message if we should not be quiet
+if status == False:
 	print response
+else:
+	if not options.quiet:
+		print response
 
