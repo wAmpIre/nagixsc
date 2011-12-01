@@ -59,12 +59,13 @@ class Checkresults(object):
 		self.options = {}
 		self.checks = []
 		self.xmldoc = None
+		self.xmltimestamp = None
 		self.encoding = None
 
 
 	def debug(self, level, message):
 		if self.options:
-			if self.options.verbose:
+			if self.options.get('verbose'):
 				if level <= self.options.verbose:
 					print "%s: %s" % (level, string)
 		else:
@@ -227,50 +228,70 @@ class Checkresults(object):
 					self.checks.append(check)
 
 
-	def xml_from_dict(self):
-		self.encoding = self.options.get('encoding') or 'base64'
+	def reset_future_timestamp(self, timestamp):
+		now = long(time.time())
+		timestamp = long(timestamp)
 
-		lasthost = None
+		if timestamp <= now:
+			return timestamp
+		else:
+			return now
 
-		db = [(check['host_name'], check) for check in self.checks]
-		db.sort()
 
-		xmlroot = ET.Element('nagixsc')
-		xmlroot.set('version', '1.1')
-		xmltimestamp = ET.SubElement(xmlroot, 'timestamp')
-		xmltimestamp.text = str(long(time.time()))
+	def check_mark_outdated(self, check):
+		now = long(time.time())
+		maxtimediff = self.options.get('seconds') or 0
+		markold = self.options.get('markold') or False
 
-		for entry in db:
-			check = entry[1]
+		timedelta = now - long(check['timestamp'])
+		if timedelta > maxtimediff:
+			check['output'] = 'Nag(ix)SC: Check result is %s(>%s) seconds old - %s' % (timedelta, maxtimediff, check['output'])
+			if markold:
+				check['returncode'] = 3
+		return check
 
-			if check['host_name'] != lasthost:
-				xmlhost = ET.SubElement(xmlroot, 'host')
-				xmlhostname = ET.SubElement(xmlhost, 'name')
-				xmlhostname.text = self.encode(check['host_name'], self.encoding)
-				xmlhostname.set('encoding', self.encoding)
-				lasthost = check['host_name']
 
-			if check['service_description'] in ['', None, ]:
-				# Host check result
-				xmlbase = xmlhost
+	def read_xml(self):
+		if self.options.get('url') != None:
+			request = urllib2.Request(self.options['url'])
+
+			if self.options.get('httpuser') and self.options.get('httppasswd'):
+				if self.options.get('httpforceauth'):
+					request.add_header('Authorization', 'Basic ' + base64.b64encode(self.options['httpuser'] + ':' + self.options['httppasswd']))
+				else:
+					passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
+					passman.add_password(None, self.options['url'], self.options['httpuser'], self.options['httppasswd'])
+					authhandler = urllib2.HTTPBasicAuthHandler(passman)
+					opener = urllib2.build_opener(authhandler)
+					urllib2.install_opener(opener)
+
+			try:
+				response = urllib2.urlopen(request)
+			except urllib2.HTTPError, error:
+				return (False, error)
+			except urllib2.URLError, error:
+				return (False, error)
+
+			self.xmldoc = ET.parse(response)
+			response.close()
+
+			return (True, 'XML loaded from URL "%s"' % self.options['url'])
+
+		else:
+			if self.options.get('file'):
+				try:
+					self.xmldoc = ET.parse(self.options['file'])
+				except IOError, error:
+					return (False, error)
 			else:
-				# Service check result
-				xmlservice = ET.SubElement(xmlhost, 'service')
-				xmldescr = ET.SubElement(xmlservice, 'description')
-				xmldescr.text = self.encode(check['service_description'], self.encoding)
-				xmldescr.set('encoding', self.encoding)
-				xmlbase = xmlservice
+				return (False, 'Neither URL nor filename specified!')
 
-			xmlreturncode = ET.SubElement(xmlbase, 'returncode')
-			xmlreturncode.text = str(check['returncode'])
-			xmloutput = ET.SubElement(xmlbase, 'output')
-			xmloutput.text = self.encode(check['output'], self.encoding)
-			xmloutput.set('encoding', self.encoding)
-			if check.has_key('timestamp'):
-				xmltimestamp  = ET.SubElement(xmlbase, 'timestamp')
-				xmltimestamp.text = str(check['timestamp'])
+			return (True, 'XML loaded from file "%s"' % self.options['file'])
 
-		self.xmldoc = ET.ElementTree(xmlroot)
+
+	def read_xml_from_string(self, content):
+		self.xmldoc = ET.parsestring(content)
+		return True
 
 
 	def write_xml(self):
@@ -305,5 +326,155 @@ class Checkresults(object):
 
 			return (True, 'Written XML to %s' % self.options['outfile'])
 
+
+	def xml_check_version(self):
+		if not self.xmldoc:
+			return (False, 'No XML structure loaded')
+
+		# FIXME: Check XML structure
+		try:
+			xmlnagixsc = self.xmldoc.getroot()
+		except:
+			return (False, 'Not a Nag(ix)SC XML file!')
+
+		if not xmlnagixsc.attrib.get('version'):
+			return (False, 'No version information found in XML file!')
+
+		version = xmlnagixsc.attrib['version']
+		if not version.startswith('1.'):
+			return (False, 'Not a Nag(ix)SC XML 1.X file')
+
+		return (True, 'XML seems to be ok')
+
+
+	def xml_get_timestamp(self):
+		xmlroot = self.xmldoc.getroot()
+
+		if not xmlroot:
+			return (False, 'Could not find XML root node')
+
+		xmltimestamps = xmlroot.findall('timestamp')
+
+		if len(xmltimestamps) != 1:
+			return (False, 'Found %s instead of one timestamp in XML' % len(xmltimestamps))
+
+		try:
+			timestamp = long(xmltimestamps[0].text)
+		except ValueError:
+			return (False, 'Timestamp is wrong: "%s"' % xmltimestamp.text)
+
+		self.xmltimestamp = timestamp
+		return (True, timestamp)
+
+
+	def xml_to_dict(self):
+		self.xmltimestamp = self.reset_future_timestamp(self.xmltimestamp)
+
+		for xmlhost in self.xmldoc.getroot().findall('host'):
+			xmlhostname = xmlhost.find('name')
+			hostname = self.decode(xmlhostname.text, xmlhostname.attrib.get('encoding'))
+			self.debug(2, 'Found host "%s"' % hostname)
+
+			# Hostfilter?
+			if self.options.get('hostfilter') and self.options['hostfilter'] != hostname:
+				continue
+
+			# Look for Host check result
+			xmlreturncode = xmlhost.find('returncode')
+			if xmlreturncode is not None:
+				returncode = xmlreturncode.text
+			else:
+				returncode = None
+
+			xmloutput = xmlhost.find('output')
+			if xmloutput is not None:
+				output = self.decode(xmloutput.text, xmloutput.attrib.get('encoding'))
+			else:
+				output = None
+
+			xmltimestamp = xmlhost.find('timestamp')
+			if xmltimestamp is not None:
+				timestamp = self.reset_future_timestamp(xmltimestamp.text)
+			else:
+				timestamp = self.xmltimestamp
+
+			# Append only if no service filter
+			if not self.options.get('servicefilter') and returncode and output:
+				self.checks.append({'host_name':hostname, 'service_description':None, 'returncode':returncode, 'output':output, 'timestamp':timestamp})
+
+			# Loop over services in host
+			for xmlservice in xmlhost.findall('service'):
+				service_dict = {}
+
+				xmlsrvdescr = xmlservice.find('description')
+				srvdescr = self.decode(xmlsrvdescr.text, xmlsrvdescr.attrib.get('encoding'))
+
+				if self.options.get('servicefilter') and self.options['servicefilter'] != srvdescr:
+					continue
+
+				xmlreturncode = xmlservice.find('returncode')
+				returncode = xmlreturncode.text
+
+				xmloutput = xmlservice.find('output')
+				output = self.decode(xmloutput.text, xmloutput.attrib.get('encoding'))
+
+				xmltimestamp = xmlservice.find('timestamp')
+				if xmltimestamp is not None:
+					timestamp = self.reset_future_timestamp(xmltimestamp.text)
+				else:
+					timestamp = self.xmltimestamp
+
+				self.debug(2, 'Found service "%s"' % srvdescr)
+
+				service_dict = {'host_name':hostname, 'service_description':srvdescr, 'returncode':returncode, 'output':output, 'timestamp':timestamp}
+				self.checks.append(service_dict)
+
+				self.debug(1, 'Host: "%s" - Service: "%s" - RetCode: "%s" - Output: "%s"' % (hostname, srvdescr, returncode, output) )
+
+
+	def xml_from_dict(self):
+		self.encoding = self.options.get('encoding') or 'base64'
+
+		lasthost = None
+
+		db = [(check['host_name'], check) for check in self.checks]
+		db.sort()
+
+		xmlroot = ET.Element('nagixsc')
+		xmlroot.set('version', '1.0')
+		xmltimestamp = ET.SubElement(xmlroot, 'timestamp')
+		xmltimestamp.text = str(long(time.time()))
+
+		for entry in db:
+			check = entry[1]
+
+			if check['host_name'] != lasthost:
+				xmlhost = ET.SubElement(xmlroot, 'host')
+				xmlhostname = ET.SubElement(xmlhost, 'name')
+				xmlhostname.text = self.encode(check['host_name'], self.encoding)
+				xmlhostname.set('encoding', self.encoding)
+				lasthost = check['host_name']
+
+			if check['service_description'] in ['', None, ]:
+				# Host check result
+				xmlbase = xmlhost
+			else:
+				# Service check result
+				xmlservice = ET.SubElement(xmlhost, 'service')
+				xmldescr = ET.SubElement(xmlservice, 'description')
+				xmldescr.text = self.encode(check['service_description'], self.encoding)
+				xmldescr.set('encoding', self.encoding)
+				xmlbase = xmlservice
+
+			xmlreturncode = ET.SubElement(xmlbase, 'returncode')
+			xmlreturncode.text = str(check['returncode'])
+			xmloutput = ET.SubElement(xmlbase, 'output')
+			xmloutput.text = self.encode(check['output'], self.encoding)
+			xmloutput.set('encoding', self.encoding)
+			if check.has_key('timestamp'):
+				xmltimestamp  = ET.SubElement(xmlbase, 'timestamp')
+				xmltimestamp.text = str(check['timestamp'])
+
+		self.xmldoc = ET.ElementTree(xmlroot)
 
 

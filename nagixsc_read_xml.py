@@ -2,7 +2,7 @@
 #
 # Nag(ix)SC -- nagixsc_read_xml.py
 #
-# Copyright (C) 2009-2010 Sven Velt <sv@teamix.net>
+# Copyright (C) 2009-2011 Sven Velt <sv@teamix.net>
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -18,19 +18,25 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-#import base64
-import libxml2
 import optparse
 import sys
 import time
 
+##############################################################################
+
+import nagixsc
+
+##############################################################################
+
+checkresults = nagixsc.Checkresults()
+
 parser = optparse.OptionParser()
 
-parser.add_option('-u', '', dest='url', help='URL of status file (xml)')
+parser.add_option('-u', '', dest='url', help='URL of xml status file')
 parser.add_option('-l', '', dest='httpuser', help='HTTP user name')
 parser.add_option('-a', '', dest='httppasswd', help='HTTP password')
 parser.add_option('', '--force-http-auth', action='store_true', dest='httpforceauth', help='Force HTTP authentication (may be unsecure!)')
-parser.add_option('-f', '', dest='file', help='(Path and) file name of status file')
+parser.add_option('-f', '', dest='file', help='(Path and) file name of xml status file')
 parser.add_option('-s', '', dest='seconds', type='int', help='Maximum age in seconds of xml timestamp')
 parser.add_option('-m', '', action='store_true', dest='markold', help='Mark (Set state) of too old checks as UNKNOWN')
 parser.add_option('-P', '', action='store_true', dest='pprint', help='Output with Python\'s pprint')
@@ -50,36 +56,47 @@ parser.set_defaults(verb=0)
 
 ##############################################################################
 
-from nagixsc import *
+now = long(time.time())
 
-##############################################################################
-
-now = int(time.time())
+# Put necessary options to checkresults
+checkresults.options['url'] = options.url
+checkresults.options['httpuser'] = options.httpuser
+checkresults.options['httppasswd'] = options.httppasswd
+checkresults.options['httpforceauth'] = options.httpforceauth
+checkresults.options['file'] = options.file
+checkresults.options['seconds'] = options.seconds
+checkresults.options['markold'] = options.markold
+checkresults.options['pprint'] = options.pprint
+checkresults.options['verbose'] = options.verb
 
 # Get URL or file
-doc = read_xml(options)
+(status, response) = checkresults.read_xml()
+
+if not status:
+	print response
+	sys.exit(127)
 
 
 # Check XML file basics
-(status, string) = xml_check_version(doc)
-debug(1, options.verb, string)
+(status, response) = checkresults.xml_check_version()
+checkresults.debug(1, response)
 if not status:
 	print string
-	sys.exit(127)
+	sys.exit(3)
 
 
 # Get timestamp and check it
-filetimestamp = xml_get_timestamp(doc)
-if not filetimestamp:
-	print 'No timestamp found in XML file, exiting because of invalid XML data...'
+(status, response) = checkresults.xml_get_timestamp()
+if not status:
+	print response
 	sys.exit(127)
 
-timedelta = int(now) - int(filetimestamp)
-debug(1, options.verb, 'Age of XML file: %s seconds, max allowed: %s seconds' % (timedelta, options.seconds))
+timedelta = long(now) - long(checkresults.xmltimestamp)
+checkresults.debug(1, 'Age of XML file: %s seconds, max allowed: %s seconds' % (timedelta, options.seconds))
 
 
 # Put XML to Python dict
-checks = xml_to_dict(doc)
+checkresults.xml_to_dict()
 
 
 if options.pprint:
@@ -88,7 +105,7 @@ if options.pprint:
 	pprint.pprint(checks)
 else:
 	# Loop over check results and output them
-	for check in checks:
-		check = check_mark_outdated(check, now, options.seconds, options.markold)
+	for check in checkresults.checks:
+		check = checkresults.check_mark_outdated(check)
 		print 'Host:      %s\nService:   %s\nRetCode:   %s\nOutput:    %r\nTimestamp: %s\n' % (check['host_name'], check['service_description'], check['returncode'], check['output'], check['timestamp'])
 
