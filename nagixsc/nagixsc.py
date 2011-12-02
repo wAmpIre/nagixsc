@@ -23,6 +23,7 @@ import os
 import shlex
 import signal
 import subprocess
+import sys
 import time
 import urllib2
 
@@ -277,16 +278,18 @@ class Checkresults(object):
 
 			return (True, 'XML loaded from URL "%s"' % self.options['url'])
 
-		else:
-			if self.options.get('file'):
-				try:
-					self.xmldoc = ET.parse(self.options['file'])
-				except IOError, error:
-					return (False, error)
-			else:
-				return (False, 'Neither URL nor filename specified!')
+		elif self.options.get('file'):
+			if self.options['file'] == '-':
+				self.options['file'] = sys.stdin
+			try:
+				self.xmldoc = ET.parse(self.options['file'])
+			except IOError, error:
+				return (False, error)
 
 			return (True, 'XML loaded from file "%s"' % self.options['file'])
+
+		else:
+			return (False, 'Neither URL nor file specified!')
 
 
 	def read_xml_from_string(self, content):
