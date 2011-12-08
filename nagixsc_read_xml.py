@@ -105,7 +105,7 @@ if options.pprint:
 	pprint.pprint(checks)
 else:
 	# Loop over check results and output them
+	checkresults.mark_all_checks_outdated()
 	for check in checkresults.checks:
-		check = checkresults.check_mark_outdated(check)
 		print 'Host:      %s\nService:   %s\nRetCode:   %s\nOutput:    %r\nTimestamp: %s\n' % (check['host_name'], check['service_description'], check['returncode'], check['output'], check['timestamp'])
 
