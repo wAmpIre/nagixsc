@@ -20,8 +20,10 @@ import ConfigParser
 import base64
 import cStringIO
 import os
+import random
 import shlex
 import signal
+import string
 import subprocess
 import sys
 import time
@@ -67,8 +69,8 @@ class Checkresults(object):
 	def debug(self, level, message):
 		if self.options:
 			if self.options.get('verbose'):
-				if level <= self.options.verbose:
-					print "%s: %s" % (level, string)
+				if level <= self.options['verbose']:
+					print "%s: %s" % (level, message)
 		else:
 			print "%s: %s" % (level, string)
 
@@ -239,9 +241,16 @@ class Checkresults(object):
 			return now
 
 
-	def check_mark_outdated(self, check):
-		now = long(time.time())
-		maxtimediff = self.options.get('seconds') or 0
+	def mark_all_checks_outdated(self):
+		now=long(time.time())
+		for check in self.checks:
+			check = self.mark_one_check_outdated(check)
+
+		return
+
+
+	def mark_one_check_outdated(self, check, now=long(time.time())):
+		maxtimediff = self.options.get('seconds') or 86400
 		markold = self.options.get('markold') or False
 
 		timedelta = now - long(check['timestamp'])
@@ -286,7 +295,9 @@ class Checkresults(object):
 			except IOError, error:
 				return (False, error)
 
-			return (True, 'XML loaded from file "%s"' % self.options['file'])
+			if type(self.options['file'] == file):
+				filename = self.options['file'].name
+			return (True, 'XML loaded from file "%s"' % filename)
 
 		else:
 			return (False, 'Neither URL nor file specified!')
@@ -328,6 +339,85 @@ class Checkresults(object):
 				return (False, error)
 
 			return (True, 'Written XML to %s' % self.options['outfile'])
+
+
+	def dict2out_passive(self):
+		FORMAT_HOST = '[%s] PROCESS_HOST_CHECK_RESULT;%s;%s;%s'
+		FORMAT_SERVICE = '[%s] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%s;%s'
+		count_services = 0
+		now = str(long(time.time()))
+
+		# Prepare pipe
+		if self.options['verbose'] <= 2:
+			try:
+				pipe = open(self.options['pipe'], "w")
+			except IOError, error:
+				return (False, count_services, error)
+		else:
+			pipe = None
+
+		# Output
+		for check in self.checks:
+			count_services += 1
+			if check.has_key('timestamp'):
+				timestamp = check['timestamp']
+			else:
+				timestamp = self.xmltimestamp or now
+
+			if check['service_description'] in ['', None,]:
+				# Host check
+				line = FORMAT_HOST % (timestamp, check['host_name'], check['returncode'], check['output'].replace('\n', '\\n'))
+			else:
+				# Service check
+				line =  FORMAT_SERVICE % (timestamp, check['host_name'], check['service_description'], check['returncode'], check['output'].replace('\n', '\\n'))
+
+			if pipe:
+				pipe.write(line + '\n')
+			self.debug(2, line)
+
+		# Close
+		if pipe:
+			pipe.close()
+		else:
+			self.debug(2, "Passive check results NOT written to Nagios/Icinga command pipe due to -vvv!")
+
+		return (True, count_services, 'Written %s check result(s) to command pipe' % count_services)
+
+
+	def dict2out_checkresult(self):
+		count_services = 0
+		count_failed = 0
+		list_failed = []
+		chars = string.letters + string.digits
+		ctimestamp = time.ctime()
+		random.seed()
+		now = str(long(time.time()))
+
+		for check in self.checks:
+			count_services += 1
+			timestamp = check.get('timestamp') or now
+
+			filename = os.path.join(self.options['checkresultdir'], 'c' + ''.join([random.choice(chars) for i in range(6)]))
+			while os.path.exists(filename):
+				filename = os.path.join(self.options['checkresultdir'], 'c' + ''.join([random.choice(chars) for i in range(6)]))
+
+			try:
+				crfile = open(filename, "w")
+				if check['service_description'] in ['', None,]:
+					# Host check - FIXME passive Check
+					crfile.write('### Active Check Result File ###\nfile_time=%s\n\n### Nagios Service Check Result ###\n# Time: %s\nhost_name=%s\ncheck_type=0\ncheck_options=0\nscheduled_check=1\nreschedule_check=1\nlatency=0.0\nstart_time=%s.00\nfinish_time=%s.05\nearly_timeout=0\nexited_ok=1\nreturn_code=%s\noutput=%s\n' % (timestamp, ctimestamp, check['host_name'], timestamp, timestamp, check['returncode'], check['output'].replace('\n', '\\n') ) )
+				else:
+					# Service check - FIXME passive Check
+					crfile.write('### Active Check Result File ###\nfile_time=%s\n\n### Nagios Service Check Result ###\n# Time: %s\nhost_name=%s\nservice_description=%s\ncheck_type=0\ncheck_options=0\nscheduled_check=1\nreschedule_check=1\nlatency=0.0\nstart_time=%s.00\nfinish_time=%s.05\nearly_timeout=0\nexited_ok=1\nreturn_code=%s\noutput=%s\n' % (timestamp, ctimestamp, check['host_name'], check['service_description'], timestamp, timestamp, check['returncode'], check['output'].replace('\n', '\\n') ) )
+				crfile.close()
+
+				# Create OK file
+				open(filename + '.ok', 'w').close()
+			except:
+				count_failed += 1
+				list_failed.append([filename, check['host_name'], check['service_description']])
+
+		return (True, count_services, count_failed, list_failed)
 
 
 	def xml_check_version(self):
@@ -382,28 +472,32 @@ class Checkresults(object):
 			if self.options.get('hostfilter') and self.options['hostfilter'] != hostname:
 				continue
 
-			# Look for Host check result
-			xmlreturncode = xmlhost.find('returncode')
-			if xmlreturncode is not None:
-				returncode = xmlreturncode.text
-			else:
-				returncode = None
+			# Service filter? Dont look for host check
+			if not self.options.get('servicefilter'):
 
-			xmloutput = xmlhost.find('output')
-			if xmloutput is not None:
-				output = self.decode(xmloutput.text, xmloutput.attrib.get('encoding'))
-			else:
-				output = None
+				# Look for Host check result
+				xmlreturncode = xmlhost.find('returncode')
+				if xmlreturncode is not None:
+					returncode = xmlreturncode.text
+				else:
+					returncode = None
 
-			xmltimestamp = xmlhost.find('timestamp')
-			if xmltimestamp is not None:
-				timestamp = self.reset_future_timestamp(xmltimestamp.text)
-			else:
-				timestamp = self.xmltimestamp
+				xmloutput = xmlhost.find('output')
+				if xmloutput is not None:
+					output = self.decode(xmloutput.text, xmloutput.attrib.get('encoding'))
+				else:
+					output = None
 
-			# Append only if no service filter
-			if not self.options.get('servicefilter') and returncode and output:
-				self.checks.append({'host_name':hostname, 'service_description':None, 'returncode':returncode, 'output':output, 'timestamp':timestamp})
+				xmltimestamp = xmlhost.find('timestamp')
+				if xmltimestamp is not None:
+					timestamp = self.reset_future_timestamp(xmltimestamp.text)
+				else:
+					timestamp = self.xmltimestamp
+
+				# Append only if returncode and output are set
+				if returncode and output:
+					self.checks.append({'host_name':hostname, 'service_description':None, 'returncode':returncode, 'output':output, 'timestamp':timestamp})
+					self.debug(1, 'Host: "%s" - RetCode: "%s" - Output: "%s"' % (hostname, returncode, output) )
 
 			# Loop over services in host
 			for xmlservice in xmlhost.findall('service'):
