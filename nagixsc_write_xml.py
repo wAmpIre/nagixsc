@@ -57,6 +57,13 @@ timestamp = long(time.time())
 checkresults.checks = [
 	{
 		'host_name': 'host1',
+		'service_description': '',
+		'output': 'OK - 127.0.0.1: rta 0.053ms, lost 0%|rta=0.053ms;200.000;500.000;0; pl=0%;40;80;; rtmax=0.144ms;;;; rtmin=0.028ms;;;;',
+		'returncode': '0',
+		'timestamp': timestamp
+	},
+	{
+		'host_name': 'host1',
 		'service_description': 'Disk_Home',
 		'output': 'DISK CRITICAL - free space: /home 775 MB (1% inode=91%);| /home=67584MB;61523;64941;0;68359',
 		'returncode': '2',
