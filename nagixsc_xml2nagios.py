@@ -2,7 +2,7 @@
 #
 # Nag(ix)SC -- nagixsc_xml2nagios.py
 #
-# Copyright (C) 2009-2010 Sven Velt <sv@teamix.net>
+# Copyright (C) 2009-2011 Sven Velt <sv@teamix.net>
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -196,7 +196,7 @@ now = long(time.time())
 (status, response) = checkresults.xml_check_version()
 checkresults.debug(1, response)
 if not status:
-	print string
+	print response
 	sys.exit(2)
 
 
