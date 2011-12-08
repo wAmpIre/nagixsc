@@ -461,6 +461,12 @@ class Checkresults(object):
 
 
 	def xml_to_dict(self):
+		if not self.xmltimestamp:
+			(status, response) = self.xml_get_timestamp()
+			if not status:
+				print response
+				sys.exit(2)
+
 		self.xmltimestamp = self.reset_future_timestamp(self.xmltimestamp)
 
 		for xmlhost in self.xmldoc.getroot().findall('host'):

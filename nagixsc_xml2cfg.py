@@ -2,7 +2,7 @@
 #
 # Nag(ix)SC -- nagixsc_xml2cfg.py
 #
-# Copyright (C) 2009-2010 Sven Velt <sv@teamix.net>
+# Copyright (C) 2009-2011 Sven Velt <sv@teamix.net>
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -18,11 +18,17 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-#import base64
-import libxml2
 import optparse
 import socket
 import sys
+
+##############################################################################
+
+import nagixsc
+
+##############################################################################
+
+checkresults = nagixsc.Checkresults()
 
 parser = optparse.OptionParser()
 
@@ -31,7 +37,7 @@ parser.add_option('-l', '', dest='httpuser', help='HTTP user name')
 parser.add_option('-a', '', dest='httppasswd', help='HTTP password')
 parser.add_option('', '--force-http-auth', action='store_true', dest='httpforceauth', help='Force HTTP authentication (may be unsecure!)')
 parser.add_option('-f', '', dest='file', help='(Path and) file name of status file')
-parser.add_option('-S', '', dest='schemacheck', help='Check XML against DTD')
+#parser.add_option('-S', '', dest='schemacheck', help='Check XML against DTD')
 parser.add_option('-H', '', dest='host', help='Hostname to search for in XML file')
 parser.add_option('-D', '', dest='service', help='Service description to search for in XML file')
 parser.add_option('', '--host-template', dest='tmpl_host', help='Filename of host template')
@@ -54,6 +60,18 @@ parser.set_defaults(verb=0)
 
 (options, args) = parser.parse_args()
 
+##############################################################################
+
+# Output
+if not options.output in [None, 'both', 'hosts', 'services']:
+	print 'Unknown output mode "%s"!' % options.output
+	sys.exit(1)
+
+if options.output in [None, 'both']:
+	options.output = ['hosts', 'services']
+else:
+	options.output = [options.output,]
+
 # Hard coded default for host template
 HOSTTEMPL='''define host {
 	use		templ_host_default
@@ -73,54 +91,55 @@ SERVICETEMPL='''define service {
 }
 '''
 
-##############################################################################
-
-from nagixsc import *
-
-##############################################################################
-
-# Output
-if not options.output in [None, 'both', 'hosts', 'services']:
-	print 'Unknown output mode "%s"!' % options.output
-	sys.exit(1)
-
-if options.output in [None, 'both']:
-	options.output = ['hosts', 'services']
-else:
-	options.output = [options.output,]
-
 # Read host and/or service template
 if options.tmpl_host and 'hosts' in options.output:
 	HOSTTEMPL = open(options.tmpl_host).read()
 if options.tmpl_service and 'services' in options.output:
 	SERVICETEMPL = open(options.tmpl_service).read()
 
-# Get URL or file
-doc = read_xml(options)
+##############################################################################
 
-# Check XML against DTD
-if options.schemacheck:
-	dtd = libxml2.parseDTD(None, options.schemacheck)
-	ctxt = libxml2.newValidCtxt()
-	ret = doc.validateDtd(ctxt, dtd)
-	if ret != 1:
-		print "error doing DTD validation"
-		sys.exit(1)
-	dtd.freeDtd()
-	del dtd
-	del ctxt
+# Put necessary options to checkresults
+checkresults.options['url'] = options.url
+checkresults.options['httpuser'] = options.httpuser
+checkresults.options['httppasswd'] = options.httppasswd
+checkresults.options['httpforceauth'] = options.httpforceauth
+checkresults.options['file'] = options.file
+checkresults.options['hostfilter'] = options.host
+checkresults.options['servicefilter'] = options.service
+
+# Get URL or file
+doc = checkresults.read_xml()
+
+# FIXME: Check XML against DTD
+#if options.schemacheck:
+#	dtd = libxml2.parseDTD(None, options.schemacheck)
+#	ctxt = libxml2.newValidCtxt()
+#	ret = doc.validateDtd(ctxt, dtd)
+#	if ret != 1:
+#		print "error doing DTD validation"
+#		sys.exit(1)
+#	dtd.freeDtd()
+#	del dtd
+#	del ctxt
 
 
 # Check XML file basics
-(status, statusstring) = xml_check_version(doc)
-debug(1, options.verb, statusstring)
+(status, response) = checkresults.xml_check_version()
+checkresults.debug(1, response)
 if not status:
-	print statusstring
-	sys.exit(127)
+	print response
+	sys.exit(2)
 
+
+# Get timestamp and check it
+(status, response) = checkresults.xml_get_timestamp()
+if not status:
+	print response
+	sys.exit(2)
 
 # Put XML to Python dict
-checks = xml_to_dict(doc, options.verb, options.host, options.service)
+checkresults.xml_to_dict()
 
 
 # Set default socket options
@@ -130,7 +149,7 @@ if hasattr(socket, 'setdefaulttimeout'):
 # Loop over check results and search for new hosts and new services
 foundhosts = []
 
-for check in checks:
+for check in checkresults.checks:
 	if not check['host_name'] in foundhosts:
 		foundhosts.append(check['host_name'])
 
