@@ -2,7 +2,7 @@
 #
 # Nag(ix)SC -- nagixsc_write_xml.py
 #
-# Copyright (C) 2009-2010 Sven Velt <sv@teamix.net>
+# Copyright (C) 2009-2011 Sven Velt <sv@teamix.net>
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
