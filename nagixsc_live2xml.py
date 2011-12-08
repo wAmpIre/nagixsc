@@ -2,7 +2,7 @@
 #
 # Nag(ix)SC -- nagixsc_live2xml.py
 #
-# Copyright (C) 2009-2010 Sven Velt <sv@teamix.net>
+# Copyright (C) 2009-2011 Sven Velt <sv@teamix.net>
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -19,19 +19,30 @@
 # 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 import optparse
+import os
 import sys
 
+LIVESOCKETs = [
+		'/usr/local/nagios/var/rw/live',
+		'/var/lib/nagios3/rw/live',
+		'/usr/local/icinga/var/rw/live',
+		'/var/lib/icinga/rw/live',
+		]
+
 ##############################################################################
 
-from nagixsc import *
+import nagixsc
+import nagixsc.livestatus
 
 ##############################################################################
+
+checkresults = nagixsc.Checkresults()
 
 parser = optparse.OptionParser()
 
 parser.add_option('-s', '', dest='socket', help='Livestatus socket to connect')
 parser.add_option('-o', '', dest='outfile', help='Output file name, "-" for STDOUT or HTTP POST URL')
-parser.add_option('-e', '', dest='encoding', help='Encoding ("%s")' % '", "'.join(available_encodings()) )
+parser.add_option('-e', '', dest='encoding', help='Encoding ("%s")' % '", "'.join(checkresults.available_encodings) )
 parser.add_option('-H', '', dest='host', help='Hostname/section to search for in config file')
 parser.add_option('-D', '', dest='service', help='Service description to search for in config file (needs -H)')
 parser.add_option('-l', '', dest='httpuser', help='HTTP user name, if outfile is HTTP(S) URL')
@@ -50,29 +61,61 @@ parser.set_defaults(verb=0)
 
 ##############################################################################
 
-if not options.socket:
-	print 'No socket specified!\n'
-	parser.print_help()
-	sys.exit(1)
+# We need this option from start
+checkresults.options['verbose'] = options.verb
 
-if not check_encoding(options.encoding):
+if options.socket == None:
+	for livesocket in LIVESOCKETs:
+		if os.path.exists(livesocket):
+			options.socket = livesocket
+			break
+
+	if options.socket == None:
+		print 'Need full path and name of livestatus socket (-s SOCKET)!'
+		sys.exit(2)
+
+if not os.access(options.socket, os.R_OK):
+	print 'Livestatus socket at "%s" not readable!' % options.socket
+	sys.exit(2)
+
+checkresults.debug(2, 'Livestatus socket found at %s' % options.socket)
+
+# Check encoding type
+if not checkresults.check_encoding(options.encoding):
 	print 'Wrong encoding method "%s"!' % options.encoding
-	print 'Could be one of: "%s"' % '", "'.join(available_encodings())
-	sys.exit(1)
+	print 'Could be one of: "%s"' % '", "'.join(checkresults.available_encodings)
+	sys.exit(3)
 
 ##############################################################################
 
+# Put necessary options to checkresults
+checkresults.options['outfile'] = options.outfile
+checkresults.options['hostfilter'] = options.host
+checkresults.options['servicefilter'] = options.service
+checkresults.options['httpuser'] = options.httpuser
+checkresults.options['httppasswd'] = options.httppasswd
+checkresults.options['encoding'] = options.encoding
+
 # Prepare socket
-s_opts = prepare_socket(options.socket)
+socket_params = nagixsc.livestatus.prepare_socket(options.socket)
 
 # Read informations from livestatus
-checks = livestatus2dict(s_opts, options.host, options.service)
+(status, result) = nagixsc.livestatus.livestatus2dict(socket_params, options.host, options.service)
+
+if status == False:
+	print result
+	sys.exit(2)
+
+checkresults.checks = result
 
 # Convert to XML
-xmldoc = xml_from_dict(checks, options.encoding)
+#checkresults.xml_from_dict()
 
 # Output
-response = write_xml_or_die(xmldoc, options.outfile, options.httpuser, options.httppasswd)
-if response and not options.quiet:
+(status, response) = checkresults.write_xml()
+
+# Print error message or status message if we should not be quiet
+if status == False:
 	print response
+	sys.exit(2)
 
