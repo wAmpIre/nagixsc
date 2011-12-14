@@ -1,3 +1,5 @@
+#!/usr/bin/python
+#
 # Nag(ix)SC -- nagixsc/nagixsc.py
 #
 # Copyright (C) 2011 Sven Velt <sv@teamix.net>
@@ -18,7 +20,6 @@
 
 import ConfigParser
 import base64
-import cStringIO
 import os
 import random
 import shlex
@@ -29,11 +30,23 @@ import sys
 import time
 import urllib2
 
+from cStringIO import StringIO
+
 from xml.dom.minidom import parseString
 from xml.etree import cElementTree as ET
 
+# Own submodules
+import daemon
 import http
+import livestatus
 
+
+##############################################################################
+
+NAGIXSC_VERSION='0.2'
+
+
+##############################################################################
 
 def read_inifile(inifile):
 	config = ConfigParser.RawConfigParser()
@@ -48,13 +61,11 @@ def read_inifile(inifile):
 
 ##############################################################################
 
-
 class ExecTimeoutError(Exception):
 	pass
 
 
 ##############################################################################
-
 
 class Checkresults(object):
 	def __init__(self):
@@ -62,6 +73,7 @@ class Checkresults(object):
 		self.options = {}
 		self.checks = []
 		self.xmldoc = None
+		self.xmlstring = None
 		self.xmltimestamp = None
 		self.encoding = None
 
@@ -314,8 +326,10 @@ class Checkresults(object):
 		if not self.options.get('outfile'):
 			return (False, 'No filename given!')
 
+		self.xml_to_string()
+
 		if self.options['outfile'].startswith('http'):
-			(headers, body) = nagixsc.http.encode_multipart(ET.tostring(self.xmldoc), self.options['httpuser'], self.options['httppasswd'])
+			(headers, body) = nagixsc.http.encode_multipart(self.xmlstring, self.options['httpuser'], self.options['httppasswd'])
 			try:
 				response = urllib2.urlopen(urllib2.Request(self.options['outfile'], body, headers)).read()
 			except urllib2.HTTPError, error:
@@ -326,10 +340,7 @@ class Checkresults(object):
 			return (True, response)
 
 		elif self.options['outfile'] == '-':
-			pseudofile = cStringIO.StringIO()
-			self.xmldoc.write(pseudofile, encoding='utf-8', xml_declaration=True)
-			pseudofile.reset()
-			print parseString(pseudofile.read()).toprettyxml(indent='  ')
+			print parseString(self.xmlstring).toprettyxml(indent='  ')
 			return (True, 'Written XML to stdout')
 
 		else:
@@ -580,4 +591,13 @@ class Checkresults(object):
 
 		self.xmldoc = ET.ElementTree(xmlroot)
 
+
+	def xml_to_string(self):
+		if not self.xmldoc:
+			self.xml_from_dict()
+
+		pseudofile = StringIO()
+		self.xmldoc.write(pseudofile, encoding='utf-8', xml_declaration=True)
+		pseudofile.reset()
+		self.xmlstring = pseudofile.read()
 
