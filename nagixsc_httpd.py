@@ -24,11 +24,6 @@ import optparse
 import os
 import sys
 
-try:
-	from hashlib import md5
-except ImportError:
-	from md5 import md5
-
 ##############################################################################
 
 import nagixsc

@@ -19,11 +19,17 @@
 import BaseHTTPServer
 import ConfigParser
 import SocketServer
+import base64
 import mimetools
 import os
 import re
 import socket
 import sys
+
+try:
+	from hashlib import md5
+except ImportError:
+	from md5 import md5
 
 ##############################################################################
 
@@ -267,15 +273,6 @@ class NagixSC_HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 		return True
 
 
-	def check_basic_auth_or_401(self, users={}, realm='Nag(ix)SC'):
-		status = self.check_basic_auth(users)
-		if not status:
-			self.http_error(401, 'Sorry! No action without login!\n', {'WWW-Authenticate': 'Basic realm="%s"' % realm, })
-			return False
-
-		return True
-
-
 	def do_GET(self):
 		return self.handle_request()
 
@@ -299,6 +296,9 @@ class NagixSC_HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 
 	def handle_exec(self, path):
+		if not self.check_basic_auth(self.server.config_executor['users']):
+			return self.http_error_basic_auth()
+
 		if len(path) < 3:
 			path += ['', '', '',]
 		(conffile, host, service) = path[0:3]
@@ -362,8 +362,6 @@ class NagixSC_HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 			return self.http_error(404, output='Not implemented yet!\n')
 
 
-
-
 	def http_error(self, code, output='Unknown Error', headers={} ):
 		self.send_response(code)
 
@@ -376,6 +374,10 @@ class NagixSC_HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 		self.wfile.write(output)
 		return
+
+
+	def http_error_basic_auth(self, message='Sorry! No action without login!\n', realm='Nag(ix)SC'):
+			return self.http_error(401, message, {'WWW-Authenticate': 'Basic realm="%s"' % realm, })
 
 
 	def setup(self):
