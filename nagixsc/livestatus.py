@@ -43,7 +43,11 @@ def prepare_socket(socket_path):
 
 def read_socket(s_opts, commands):
 	s = socket.socket(s_opts[0], socket.SOCK_STREAM)
-	s.connect(s_opts[1])
+	try:
+		s.connect(s_opts[1])
+	except IOError:
+		return (False, 'Could not read from configured socket')
+
 	for line in commands:
 		if not line.endswith('\n'):
 			line += '\n'
@@ -60,9 +64,9 @@ def read_socket(s_opts, commands):
 			else:
 				break
 	except socket.timeout:
-		return ''
+		return (False, 'Socket timeout')
 
-	return answer
+	return (True, answer)
 
 
 def livestatus2dict(s_opts, host=None, service=None):
@@ -76,13 +80,15 @@ def livestatus2dict(s_opts, host=None, service=None):
 		commands.append('OutputFormat: python\n')
 		if host:
 			commands.append('Filter: name = %s' % host)
-		answer = read_socket(s_opts, commands)
+		(status, result) = read_socket(s_opts, commands)
+		if not status:
+			return (False, result)
 		try:
-			answer = eval(answer)
+			result = eval(result)
 		except:
 			return (False, 'Bad output from livestatus for host check(s)!')
 
-		for line in answer:
+		for line in result:
 			output = '\n'.join([line[2], line[3]]).rstrip()
 			if line[4]:
 				output += '|' + line[4]
@@ -98,13 +104,15 @@ def livestatus2dict(s_opts, host=None, service=None):
 	if service:
 		commands.append('Filter: description = %s' % service)
 
-	answer = read_socket(s_opts, commands)
+	(status, result) = read_socket(s_opts, commands)
+	if not status:
+		return (False, result)
 	try:
-		answer = eval(answer)
+		result = eval(result)
 	except:
 		return (False, 'Bad output from livestatus for service check(s)!')
 
-	for line in answer:
+	for line in result:
 		output = '\n'.join([line[3], line[4]]).rstrip()
 		if line[5]:
 			output += '|' + line[5]
