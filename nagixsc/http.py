@@ -398,25 +398,55 @@ class NagixSC_HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 		self.checkresults.xml_to_dict()
 
 		# FIXME: ACL
+		count_acl_failed = 0
 
 		# Output dependent on mode setting
 		if self.server.config_acceptor['mode'] == 'checkresult':
 			self.checkresults.options['checkresultdir'] = self.server.config_acceptor['checkresult_dir']
+			datasink = 'check result dir'
 
 			(status, count_services, count_failed, list_failed) = self.checkresults.dict2out_checkresult()
+
 			# FIXME: Check result
 			print (status, count_services, count_failed, list_failed)
 
 		elif self.server.config_acceptor['mode'] == 'passive':
 			self.checkresults.options['pipe'] = self.server.config_acceptor['commandfile_path']
 			self.checkresults.options['pipe'] = '/dev/stdout'
+			datasink = 'command file'
 
-			(status, count_services, response) = self.checkresults.dict2out_passive()
+			(status, count_services, count_failed, response) = self.checkresults.dict2out_passive()
 			# FIXME: Check result
 			print (status, count_services, response)
 
 		elif self.server.config_acceptor['mode'] == 'livestatus':
 			return self.http_error(500, 'Mode not implemented!\n')
+
+		# We did something...
+		if count_failed == 0:
+			returncode = 0
+			output = 'Wrote %s check results to %s' % (count_services, datasink)
+		elif count_failed < count_services:
+			returncode = 1
+			statusmsg = 'Wrote %s check results to %s, %s failed' % (count_services, datasink, count_failed)
+		else:
+			returncode = 2
+			output = 'Could not write ANY out of %s check results to %s' % (count_services, datasink)
+
+		if count_acl_failed > 0:
+			returncode = max(returncode, 1)
+			output += ' - %s check results failed ACL check' % count_acl_failed
+
+		result = nagixsc.Checkresults()
+		result.checks = [{'host_name':'_nagixsc', 'service_description':'_acceptor', 'returncode':returncode, 'output':output,},]
+		result.xml_from_dict()
+		result.xml_to_string()
+
+		self.send_response(200)
+		self.send_header('Content-Type', 'text/xml')
+		self.end_headers()
+		self.wfile.write(result.xmlstring)
+
 
 	def handle_proxy(self, path):
 			return self.http_error(404, output='Not implemented yet!\n')

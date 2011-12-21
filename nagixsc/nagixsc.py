@@ -373,7 +373,7 @@ class Checkresults(object):
 			try:
 				pipe = open(self.options['pipe'], "w")
 			except IOError, error:
-				return (False, count_services, error)
+				return (False, count_services, 0, error)
 		else:
 			pipe = None
 
@@ -402,7 +402,7 @@ class Checkresults(object):
 		else:
 			self.debug(2, "Passive check results NOT written to Nagios/Icinga command pipe due to -vvv!")
 
-		return (True, count_services, 'Written %s check result(s) to command pipe' % count_services)
+		return (True, count_services, 0, 'Written %s check result(s) to command pipe' % count_services)
 
 
 	def dict2out_checkresult(self):
