@@ -294,7 +294,10 @@ class Checkresults(object):
 			except urllib2.URLError, error:
 				return (False, error)
 
-			self.xmldoc = ET.parse(response)
+			try:
+				self.xmldoc = ET.parse(response)
+			except ET.ParseError, error:
+				return (False, 'Could not parse XML file: %s!' % error)
 			response.close()
 
 			return (True, 'XML loaded from URL "%s"' % self.options['url'])
@@ -306,9 +309,13 @@ class Checkresults(object):
 				self.xmldoc = ET.parse(self.options['file'])
 			except IOError, error:
 				return (False, error)
+			except ET.ParseError, error:
+				return (False, 'Could not parse XML file: %s!' % error)
 
-			if type(self.options['file'] == file):
+			if type(self.options['file']) == file:
 				filename = self.options['file'].name
+			else:
+				filename = self.options['file']
 			return (True, 'XML loaded from file "%s"' % filename)
 
 		else:
@@ -316,8 +323,11 @@ class Checkresults(object):
 
 
 	def read_xml_from_string(self, content):
-		self.xmldoc = ET.parsestring(content)
-		return True
+		try:
+			self.xmldoc = ET.ElementTree(ET.fromstring(content))
+		except ET.ParseError, error:
+			return (False, 'Could not parse XML file: %s!' % error)
+		return (True, '')
 
 
 	def write_xml(self):
