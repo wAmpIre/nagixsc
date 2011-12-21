@@ -96,12 +96,14 @@ if plstatus:
 		print 'Nag(ix)SC: Need exact ONE check result in response, got %s' % len(plresult.checks)
 		sys.exit(3)
 
-	print plresult.checks[0]['output']
-	sys.exit(int(plresult.checks[0]['returncode']))
+	if not options.quiet:
+		print plresult.checks[0]['output']
+		sys.exit(int(plresult.checks[0]['returncode']))
 
 # No XML => Print error message or status message if we should not be quiet
 if status == False:
 	print response
+	sys.exit(2)
 else:
 	if not options.quiet:
 		print response

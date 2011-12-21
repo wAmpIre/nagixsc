@@ -290,9 +290,9 @@ class Checkresults(object):
 			try:
 				response = urllib2.urlopen(request)
 			except urllib2.HTTPError, error:
-				return (False, error)
+				return (False, str(error))
 			except urllib2.URLError, error:
-				return (False, error)
+				return (False, str(error.reason))
 
 			try:
 				self.xmldoc = ET.parse(response)
@@ -308,9 +308,9 @@ class Checkresults(object):
 			try:
 				self.xmldoc = ET.parse(self.options['file'])
 			except IOError, error:
-				return (False, error)
+				return (False, str(error))
 			except ET.ParseError, error:
-				return (False, 'Could not parse XML file: %s!' % error)
+				return (False, 'Could not parse XML file: %s!' % str(error))
 
 			if type(self.options['file']) == file:
 				filename = self.options['file'].name
@@ -343,9 +343,9 @@ class Checkresults(object):
 			try:
 				response = urllib2.urlopen(urllib2.Request(self.options['outfile'], body, headers)).read()
 			except urllib2.HTTPError, error:
-				return (False, error)
+				return (False, str(error))
 			except urllib2.URLError, error:
-				return (False, error)
+				return (False, str(error.reason))
 
 			return (True, response)
 
@@ -357,7 +357,7 @@ class Checkresults(object):
 			try:
 				self.xmldoc.write(self.options['outfile'], encoding='utf-8', xml_declaration=True)
 			except IOError, error:
-				return (False, error)
+				return (False, str(error))
 
 			return (True, 'Written XML to %s' % self.options['outfile'])
 
