@@ -70,7 +70,7 @@ class ExecTimeoutError(Exception):
 class Checkresults(object):
 	def __init__(self):
 		self.available_encodings = ['base64', 'plain',]
-		self.options = {}
+		self.options = {'verbose':0,}
 		self.checks = []
 		self.xmldoc = None
 		self.xmlstring = None
