@@ -288,7 +288,7 @@ class NagixSC_HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 		if path[0].startswith('_exec'):
 			self.handle_exec(path=path[1:])
 		elif path[0].startswith('_accept'):
-			self.handle_accep(path=path[1:])
+			self.handle_accept(path=path[1:])
 		elif path[0].startswith('_proxy'):
 			self.handle_proxy(path=path[1:])
 		else:
@@ -356,8 +356,67 @@ class NagixSC_HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 
 	def handle_accept(self, path):
-		pass
+		if not self.check_basic_auth(self.server.config_executor['users']):
+			return self.http_error_basic_auth()
 
+		try:
+			(contenttype,paramdict) = cgi.parse_header(self.headers.getheader('content-type'))
+		except TypeError:
+			return self.http_error(500, 'Could not parse HTTP Headers!\n')
+
+		if contenttype != 'multipart/form-data':
+			return self.http_error(500, 'Please send data as "multipart/form-data"!\n')
+		query = cgi.parse_multipart(self.rfile, paramdict)
+
+		xmltext = query.get('xmlfile')
+		if not xmltext:
+			return self.http_error(500, 'No data in "xmlfile" variable found!\n')
+		xmltext = xmltext[0]
+
+		if len(xmltext) == 0:
+			return self.http_error(500, 'No XML data received!\n')
+
+		# Prepare checkresult object
+		self.checkresults = nagixsc.Checkresults()
+
+		# Put XML into checkresults
+		(status, response) = self.checkresults.read_xml_from_string(xmltext)
+		if not status:
+			return self.http_error(500, response)
+
+		# Check XML file basics
+		(status, response) = self.checkresults.xml_check_version()
+		if not status:
+			return self.http_error(500, response)
+
+		# Get timestamp and check it
+		(status, response) = self.checkresults.xml_get_timestamp()
+		if not status:
+			return self.http_error(500, response)
+
+		# Put XML to Python dict
+		self.checkresults.xml_to_dict()
+
+		# FIXME: ACL
+
+		# Output dependent on mode setting
+		if self.server.config_acceptor['mode'] == 'checkresult':
+			self.checkresults.options['checkresultdir'] = self.server.config_acceptor['checkresult_dir']
+
+			(status, count_services, count_failed, list_failed) = self.checkresults.dict2out_checkresult()
+			# FIXME: Check result
+			print (status, count_services, count_failed, list_failed)
+
+		elif self.server.config_acceptor['mode'] == 'passive':
+			self.checkresults.options['pipe'] = self.server.config_acceptor['commandfile_path']
+			self.checkresults.options['pipe'] = '/dev/stdout'
+
+			(status, count_services, response) = self.checkresults.dict2out_passive()
+			# FIXME: Check result
+			print (status, count_services, response)
+
+		elif self.server.config_acceptor['mode'] == 'livestatus':
+			return self.http_error(500, 'Mode not implemented!\n')
 
 	def handle_proxy(self, path):
 			return self.http_error(404, output='Not implemented yet!\n')
