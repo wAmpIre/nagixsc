@@ -86,7 +86,20 @@ checkresults.conf2dict(config)
 # Output
 (status, response) = checkresults.write_xml()
 
-# Print error message or status message if we should not be quiet
+plresult = nagixsc.Checkresults()
+(plstatus, plresponse) = plresult.read_xml_from_string(response)
+
+# plstatus == True if we got Nag(ix)SC XML back
+if plstatus:
+	plresult.xml_to_dict()
+	if len(plresult.checks) != 1:
+		print 'Nag(ix)SC: Need exact ONE check result in response, got %s' % len(plresult.checks)
+		sys.exit(3)
+
+	print plresult.checks[0]['output']
+	sys.exit(int(plresult.checks[0]['returncode']))
+
+# No XML => Print error message or status message if we should not be quiet
 if status == False:
 	print response
 else:
