@@ -339,7 +339,7 @@ class Checkresults(object):
 		self.xml_to_string()
 
 		if self.options['outfile'].startswith('http'):
-			(headers, body) = nagixsc.http.encode_multipart(self.xmlstring, self.options['httpuser'], self.options['httppasswd'])
+			(headers, body) = http.encode_multipart(self.xmlstring, self.options['httpuser'], self.options['httppasswd'])
 			try:
 				response = urllib2.urlopen(urllib2.Request(self.options['outfile'], body, headers)).read()
 			except urllib2.HTTPError, error:

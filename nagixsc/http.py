@@ -20,6 +20,7 @@ import BaseHTTPServer
 import ConfigParser
 import SocketServer
 import base64
+import cgi
 import mimetools
 import os
 import re
@@ -36,7 +37,7 @@ except ImportError:
 import nagixsc
 
 
-def encode_multipart(xmldoc, httpuser=None, httppasswd=None):
+def encode_multipart(xmlstr, httpuser=None, httppasswd=None):
 	BOUNDARY = mimetools.choose_boundary()
 	CRLF = '\r\n'
 	L = []
@@ -44,7 +45,7 @@ def encode_multipart(xmldoc, httpuser=None, httppasswd=None):
 	L.append('Content-Disposition: form-data; name="xmlfile"; filename="xmlfile"')
 	L.append('Content-Type: application/xml')
 	L.append('')
-	L.append(xmldoc.serialize())
+	L.append(xmlstr)
 	L.append('--' + BOUNDARY + '--')
 	L.append('')
 	body = CRLF.join(L)
