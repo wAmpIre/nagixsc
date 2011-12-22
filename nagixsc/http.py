@@ -217,7 +217,10 @@ class NagixSC_HTTPServer(MixInClass, BaseHTTPServer.HTTPServer):
 			for user in cfgread.options('acceptor/acl_allowed_hosts_list'):
 				config['acl_allowed_hosts_list'][user] = [ah.lstrip().rstrip() for ah in cfgread.get('acceptor/acl_allowed_hosts_list',user).split(',')]
 			for user in cfgread.options('acceptor/acl_allowed_hosts_re'):
-				config['acl_allowed_hosts_re'][user] = re.compile(cfgread.get('acceptor/acl_allowed_hosts_re',user))
+				try:
+					config['acl_allowed_hosts_re'][user] = re.compile(cfgread.get('acceptor/acl_allowed_hosts_re',user))
+				except re.error, error:
+					self.quit(2, 'Could not read [acceptor/acl_allowed_hosts_re], "%s" in line "%s"' % (error, cfgread.get('acceptor/acl_allowed_hosts_re',user)))
 
 		self.config_acceptor = config
 
