@@ -87,6 +87,21 @@ class Checkresults(object):
 			print "%s: %s" % (level, string)
 
 
+	def apply_acl(self, user, allowed_hosts_list={}, allow_hosts_re={}, deny_hosts_list={}, deny_hosts_re={}):
+		new_checks = []
+		for check in self.checks:
+			# FIXME: Deny
+			if user in allowed_hosts_list and check['host_name'] in allowed_hosts_list[user]:
+				new_checks.append(check)
+			if user in allow_hosts_re and (allow_hosts_re[user]).search(check['host_name']):
+				new_checks.append(check)
+
+		count_acl_failed = len(self.checks) - len(new_checks)
+		self.checks = new_checks
+
+		return (True, count_acl_failed)
+
+
 	def check_encoding(self, encoding):
 		if encoding in self.available_encodings:
 			return True

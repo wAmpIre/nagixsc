@@ -402,8 +402,11 @@ class NagixSC_HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 		# Put XML to Python dict
 		self.checkresults.xml_to_dict()
 
-		# FIXME: ACL
-		count_acl_failed = 0
+		# Apply ACLs
+		if self.server.config_acceptor['acl']:
+			(status, count_acl_failed) = self.checkresults.apply_acl(httpuser, self.server.config_acceptor['acl_allowed_hosts_list'], self.server.config_acceptor['acl_allowed_hosts_re'])
+		else:
+			count_acl_failed = 0
 
 		# Output dependent on mode setting
 		if self.server.config_acceptor['mode'] == 'checkresult':
