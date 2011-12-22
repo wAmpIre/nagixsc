@@ -265,16 +265,16 @@ class NagixSC_HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 	def check_basic_auth(self, users={}, realm='Nag(ix)SC'):
 		if not 'Authorization' in self.headers:
-			return False
+			return (False, None)
 
 		try:
 			authdata = base64.b64decode(self.headers['Authorization'].split(' ')[1]).split(':')
 			if not users[authdata[0]] == md5(authdata[1]).hexdigest():
-				return False
+				return (False, None)
 		except:
-			return False
+			return (False, None)
 
-		return True
+		return (True, authdata[0])
 
 
 	def do_GET(self):
@@ -300,7 +300,8 @@ class NagixSC_HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 
 	def handle_exec(self, path):
-		if not self.check_basic_auth(self.server.config_executor['users']):
+		(status, httpuser) = self.check_basic_auth(self.server.config_executor['users'])
+		if not status:
 			return self.http_error_basic_auth()
 
 		if len(path) < 3:
@@ -359,7 +360,8 @@ class NagixSC_HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 
 	def handle_accept(self, path):
-		if not self.check_basic_auth(self.server.config_executor['users']):
+		(status, httpuser) = self.check_basic_auth(self.server.config_acceptor['users'])
+		if not httpuser:
 			return self.http_error_basic_auth()
 
 		try:
