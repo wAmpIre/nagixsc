@@ -80,7 +80,7 @@ class NagixSC_HTTPServer(MixInClass, BaseHTTPServer.HTTPServer):
 		self.cfgread.readfp(defaults)
 
 
-	def quit(returncode, message):
+	def quit(self, returncode, message):
 		print message
 		sys.exit(returncode)
 
@@ -127,17 +127,17 @@ class NagixSC_HTTPServer(MixInClass, BaseHTTPServer.HTTPServer):
 		try:
 			config['port'] = cfgread.getint('server', 'port')
 		except ValueError:
-			quit(2, 'Port "%s" not an integer!' % cfgread.get('server', 'port'))
+			self.quit(2, 'Port "%s" not an integer!' % cfgread.get('server', 'port'))
 
 		try:
 			config['ssl'] = cfgread.getboolean('server', 'ssl')
 		except ValueError:
-			quit(2, 'Value for "ssl" ("%s") not boolean!' % cfgread.get('server', 'ssl'))
+			self.quit(2, 'Value for "ssl" ("%s") not boolean!' % cfgread.get('server', 'ssl'))
 
 		if config['ssl']:
 			config['sslcert'] = cfgread.get('server', 'sslcert')
 			if not config['sslcert']:
-				quit(2, 'SSL but no certificate file specified!')
+				self.quit(2, 'SSL but no certificate file specified!')
 		else:
 			config['sslcert'] = None
 
@@ -146,12 +146,12 @@ class NagixSC_HTTPServer(MixInClass, BaseHTTPServer.HTTPServer):
 		try:
 			config['enable_executor'] = cfgread.getboolean('server', 'enable_executor')
 		except ValueError:
-			quit(2, 'Value for "enable_executor" ("%s") not boolean!' % cfgread.get('server', 'enable_executor'))
+			self.quit(2, 'Value for "enable_executor" ("%s") not boolean!' % cfgread.get('server', 'enable_executor'))
 
 		try:
 			config['enable_acceptor'] = cfgread.getboolean('server', 'enable_acceptor')
 		except ValueError:
-			quit(2, 'Value for "enable_acceptor" ("%s") not boolean!' % cfgread.get('server', 'enable_acceptor'))
+			self.quit(2, 'Value for "enable_acceptor" ("%s") not boolean!' % cfgread.get('server', 'enable_acceptor'))
 
 		self.config_server = config
 
@@ -161,12 +161,12 @@ class NagixSC_HTTPServer(MixInClass, BaseHTTPServer.HTTPServer):
 
 		config['conf_dir'] = cfgread.get('executor', 'conf_dir')
 		if not os.path.exists(config['conf_dir']):
-			quit(2, 'Conf directory "%s" does not exist!' % config['conf_dir'])
+			self.quit(2, 'Conf directory "%s" does not exist!' % config['conf_dir'])
 
 		try:
 			config['remote_administration'] = cfgread.getboolean('executor', 'remote_administration')
 		except ValueError:
-			quit(2, 'Value for "remote_administration" ("%s") not boolean!' % cfgread.get('executor', 'remote_administration'))
+			self.quit(2, 'Value for "remote_administration" ("%s") not boolean!' % cfgread.get('executor', 'remote_administration'))
 
 		config['livestatus_socket'] = nagixsc.livestatus.prepare_socket(cfgread.get('executor', 'livestatus_socket'))
 
@@ -186,22 +186,22 @@ class NagixSC_HTTPServer(MixInClass, BaseHTTPServer.HTTPServer):
 
 		config['mode'] = cfgread.get('acceptor', 'mode').lower()
 		if not config['mode'] in ['checkresult', 'passive',]:
-			quit(2, 'Unknown mode "%s" for acceptor!' % config['mode'])
+			self.quit(2, 'Unknown mode "%s" for acceptor!' % config['mode'])
 
 		config['checkresult_dir'] = cfgread.get('acceptor', 'checkresult_dir')
 		config['commandfile_path'] = cfgread.get('acceptor', 'commandfile_path')
 
 		if config['mode'] == 'checkresult':
 			if not os.access(config['checkresult_dir'], os.W_OK):
-				quit(2, 'Checkresult directory "%s" not writable!' % config['checkresult_dir'])
+				self.quit(2, 'Checkresult directory "%s" not writable!' % config['checkresult_dir'])
 		elif config['mode'] == 'passive':
 			if not config['commandfile_path']:
-				quit(2, 'Need a full path to command file/pipe!')
+				self.quit(2, 'Need a full path to command file/pipe!')
 
 		try:
 			config['acl'] = cfgread.getboolean('acceptor', 'acl')
 		except ValueError:
-			quit(2, 'Value for "acl" ("%s") not boolean!' % cfgread.get('acceptor', 'acl'))
+			self.quit(2, 'Value for "acl" ("%s") not boolean!' % cfgread.get('acceptor', 'acl'))
 
 		config['users'] = {}
 		for user in cfgread.options('acceptor/users'):
