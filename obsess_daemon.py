@@ -24,7 +24,9 @@ import sys
 import time
 
 ##############################################################################
-from nagixsc import *
+
+import nagixsc
+
 ##############################################################################
 
 def check_dir(dirpath):
@@ -52,12 +54,26 @@ def read_obsess_file(filename):
 		if line.startswith('LASTSERVICECHECK'):
 			m = service_analyzer.match(line)
 			if m:
-				checks.append({'host_name':m.group(2), 'service_description':m.group(3), 'returncode':m.group(4), 'output':'\n'.join(m.group(5,6)), 'timestamp':m.group(1)})
-
+				check = m.groupdict()
+				if check['longoutput']:
+					check['output'] += '\n' + check['longoutput']
+					check.pop('longoutput')
+				if check['perfdata']:
+					check['output'] += '|' + check['perfdata']
+					check.pop('perfdata')
+				checks.append(check)
 		elif line.startswith('LASTHOSTCHECK'):
 			m = host_analyzer.match(line)
 			if m:
-				checks.append({'host_name':m.group(2), 'service_description':None, 'returncode':m.group(3), 'output':'\n'.join(m.group(4,5)), 'timestamp':m.group(1)})
+				check = m.groupdict()
+				check['service_description'] = None
+				if check['longoutput']:
+					check['output'] += '\n' + check['longoutput']
+					check.pop('longoutput')
+				if check['perfdata']:
+					check['output'] += '|' + check['perfdata']
+					check.pop('perfdata')
+				checks.append(check)
 		else:
 			print 'FAIL: ' + line
 		count_lines += 1
@@ -87,21 +103,39 @@ for d in [spoolpath_base, spoolpath_new, spoolpath_work, spoolpath_done]:
 outdir = os.path.join(spoolpath_base, 'xmlout')
 check_dir(outdir)
 
-service_analyzer = re.compile("^LASTSERVICECHECK::'?(\d+)'?\s+HOSTNAME::'?([^']+)'?\s+SERVICEDESC::'?([^']+)'?\s+SERVICESTATEID::'?(\d+)'?\s+SERVICEOUTPUT::'?([^']*)'?\s+LONGSERVICEOUTPUT::'?([^']*)'?$")
-host_analyzer = re.compile("LASTHOSTCHECK::'?(\d+)'?\s+HOSTNAME::'?([^']+)'?\s+HOSTSTATEID::'?(\d+)'?\s+HOSTOUTPUT::'?([^']*)'?\s+LONGHOSTOUTPUT::'?([^']*)'?$")
+service_analyzer = "^LASTSERVICECHECK::(?P<timestamp>\d+)\s+"
+service_analyzer += "HOSTNAME::'(?P<host_name>[^']+)'\s+"
+service_analyzer += "SERVICEDESC::'(?P<service_description>[^']+)'\s+"
+service_analyzer += "SERVICESTATEID::(?P<returncode>\d+)\s+"
+service_analyzer += "SERVICEOUTPUT::'(?P<output>[^']*)'\s+"
+service_analyzer += "SERVICEPERFDATA::'(?P<perfdata>[^']*)'\s+"
+service_analyzer += "LONGSERVICEOUTPUT::'(?P<longoutput>[^']*)'"
+service_analyzer = re.compile(service_analyzer)
+
+host_analyzer = "LASTHOSTCHECK::(?P<timestamp>\d+)\s+"
+host_analyzer += "HOSTNAME::'(?P<host_name>[^']+)'\s+"
+host_analyzer += "HOSTSTATEID::(?P<returncode>\d+)\s+"
+host_analyzer += "HOSTOUTPUT::'(?P<output>[^']*)'\s+"
+host_analyzer += "HOSTPERFDATA::'(?P<perfdata>[^']*)'\s+"
+host_analyzer += "LONGHOSTOUTPUT::'(?P<longoutput>[^']*)'"
+host_analyzer = re.compile(host_analyzer)
 
 # Prepare
-checks = []
+checkresults = nagixsc.Checkresults()
 files_done = []
+
+# Put options to checkresults
+checkresults.options['httpuser'] = sys.argv[2]
+checkresults.options['httppasswd'] = sys.argv[3]
 
 # Check if there are old files in "work" - they didn't get sent!
 print 'Startup...'
 if os.listdir(spoolpath_work):
 	for filename in os.listdir(spoolpath_work):
 		spoolfile = os.path.join(spoolpath_work, filename)
-		checks.extend(read_obsess_file(spoolfile))
+		checkresults.checks.extend(read_obsess_file(spoolfile))
 		files_done.append(filename)
-	print 'Reloaded %d check results form work dir' % len(checks)
+	print 'Reloaded %d check results form work dir' % len(checkresults.checks)
 
 
 print 'Main loop...'
@@ -112,27 +146,33 @@ while True:
 			os.rename(os.path.join(spoolpath_new, filename), spoolfile)
 
 			# Work with file
-			checks.extend(read_obsess_file(spoolfile))
+			checkresults.checks.extend(read_obsess_file(spoolfile))
 			files_done.append(filename)
-	print 'Got %d check results for submitting' % len(checks)
+	print 'Got %d check results for submitting' % len(checkresults.checks)
 
-	if len(checks):
-		xmldoc = xml_from_dict(checks)
+	if len(checkresults.checks):
+		# Build XML
+		checkresults.xml_from_dict()
+		checkresults.xml_to_string()
 
 		# Write to File
-		outfilename = str(int(time.time())) + '.xml'
-		write_xml(xmldoc, os.path.join(outdir, outfilename), None, None)
-		print 'Written ' + outfilename
+		outfilename = '%i.xml' % time.time()
+		checkresults.options['outfile'] = os.path.join(outdir, outfilename)
+		(status, response) = checkresults.write_xml()
+		if status:
+			print 'Written ' + outfilename
+		else:
+			print 'COULD NOT write ' + outfilename
 
 		# Write to http2nagios
-		try:
-			write_xml(xmldoc, sys.argv[1], sys.argv[2], sys.argv[3])
-		except urllib2.URLError, error:
-			print error[0]
+		checkresults.options['outfile'] = sys.argv[1]
+		(status, response) = checkresults.write_xml()
+		if not status:
+			print response
 		else:
 			for filename in files_done:
 				os.rename(os.path.join(spoolpath_work, filename), os.path.join(spoolpath_done, filename))
-			checks = []
+			checkresults.checks = []
 			files_done = []
 
 	time.sleep(5)
