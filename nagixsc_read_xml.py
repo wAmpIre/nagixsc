@@ -102,7 +102,7 @@ checkresults.xml_to_dict()
 if options.pprint:
 	# Print 'em all in one
 	import pprint
-	pprint.pprint(checks)
+	pprint.pprint(checkresults.checks)
 else:
 	# Loop over check results and output them
 	checkresults.mark_all_checks_outdated()
