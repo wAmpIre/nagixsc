@@ -221,7 +221,7 @@ checkresults.mark_all_checks_outdated()
 # Next steps depend on mode, output results
 # MODE: passive
 if options.mode == 'passive':
-	(status, count_services, response) = checkresults.dict2out_passive()
+	(status, count_services, count_failed, response) = checkresults.dict2out_passive()
 	if not status:
 		print response
 		sys.exit(2)
