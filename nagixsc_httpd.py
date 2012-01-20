@@ -35,20 +35,20 @@ defaults4cfgfile = cStringIO.StringIO('''
 ip: 0.0.0.0
 port: 15651
 ssl: false
-sslcert
+sslcert:
 pidfile: /var/run/nagixsc_httpd.pid
 enable_executor: false
 enable_acceptor: false
 [executor]
-conf_dir
+conf_dir:
 remote_administration: false
-livestatus_socket
+livestatus_socket:
 [executor/users]
 [executor/admins]
 [acceptor]
-mode
-checkresult_dir
-commandfile_path
+mode:
+checkresult_dir:
+commandfile_path:
 acl: false
 [acceptor/users]
 [acceptor/admins]

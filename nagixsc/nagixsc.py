@@ -48,6 +48,20 @@ NAGIXSC_VERSION='0.2'
 
 ##############################################################################
 
+if sys.version_info >= (2,7):
+	xmlwriteargs = {'xml_declaration':True, }
+else:
+	xmlwriteargs = {}
+
+if 'ParseError' in ET.__dict__:
+	# Python 2.7 -
+	my_ET_Parse_Error = ET.ParseError
+elif 'XMLParserError' in ET.__dict__:
+	# Python 2.5 - 2.6
+	my_ET_Parse_Error = ET.XMLParserError
+
+##############################################################################
+
 def read_inifile(inifile):
 	config = ConfigParser.RawConfigParser()
 	config.optionxform = str # We need case-sensitive options
@@ -308,10 +322,16 @@ class Checkresults(object):
 				return (False, str(error))
 			except urllib2.URLError, error:
 				return (False, str(error.reason))
+			except RuntimeError, error:
+				# Bug in Python 2.6/urllib2 / Ubuntu 10.04
+				if str(error) == 'maximum recursion depth exceeded':
+					return (False, 'HTTP 401 Authorization required/failed (your python version is broken)')
+				else:
+					raise
 
 			try:
 				self.xmldoc = ET.parse(response)
-			except ET.ParseError, error:
+			except my_ET_Parse_Error, error:
 				return (False, 'Could not parse XML file: %s!' % error)
 			response.close()
 
@@ -324,7 +344,7 @@ class Checkresults(object):
 				self.xmldoc = ET.parse(self.options['file'])
 			except IOError, error:
 				return (False, str(error))
-			except ET.ParseError, error:
+			except my_ET_Parse_Error, error:
 				return (False, 'Could not parse XML file: %s!' % str(error))
 
 			if type(self.options['file']) == file:
@@ -340,7 +360,7 @@ class Checkresults(object):
 	def read_xml_from_string(self, content):
 		try:
 			self.xmldoc = ET.ElementTree(ET.fromstring(content))
-		except ET.ParseError, error:
+		except my_ET_Parse_Error, error:
 			return (False, 'Could not parse XML file: %s!' % error)
 		return (True, '')
 
@@ -361,6 +381,12 @@ class Checkresults(object):
 				return (False, str(error))
 			except urllib2.URLError, error:
 				return (False, str(error.reason))
+			except RuntimeError, error:
+				# Bug in Python 2.6/urllib2 / Ubuntu 10.04
+				if str(error) == 'maximum recursion depth exceeded':
+					return (False, 'HTTP 401 Authorization required/failed (your python version is broken)')
+				else:
+					raise
 
 			return (True, response)
 
@@ -370,7 +396,7 @@ class Checkresults(object):
 
 		else:
 			try:
-				self.xmldoc.write(self.options['outfile'], encoding='utf-8', xml_declaration=True)
+				self.xmldoc.write(self.options['outfile'], encoding='utf-8', **xmlwriteargs)
 			except IOError, error:
 				return (False, str(error))
 
@@ -520,7 +546,7 @@ class Checkresults(object):
 				# Look for Host check result
 				xmlreturncode = xmlhost.find('returncode')
 				if xmlreturncode is not None:
-					returncode = xmlreturncode.text
+					returncode = xmlreturncode.text.lstrip().rstrip()
 				else:
 					returncode = None
 
@@ -552,7 +578,7 @@ class Checkresults(object):
 					continue
 
 				xmlreturncode = xmlservice.find('returncode')
-				returncode = xmlreturncode.text
+				returncode = xmlreturncode.text.lstrip().rstrip()
 
 				xmloutput = xmlservice.find('output')
 				output = self.decode(xmloutput.text, xmloutput.attrib.get('encoding'))
@@ -622,7 +648,7 @@ class Checkresults(object):
 			self.xml_from_dict()
 
 		pseudofile = StringIO()
-		self.xmldoc.write(pseudofile, encoding='utf-8', xml_declaration=True)
+		self.xmldoc.write(pseudofile, encoding='utf-8', **xmlwriteargs)
 		pseudofile.reset()
 		self.xmlstring = pseudofile.read()
 

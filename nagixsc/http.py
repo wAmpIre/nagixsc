@@ -75,7 +75,7 @@ class NagixSC_HTTPServer(MixInClass, BaseHTTPServer.HTTPServer):
 		self.config_acceptor = {}
 
 		# Prepare reading config file
-		self.cfgread = ConfigParser.SafeConfigParser(allow_no_value=True)
+		self.cfgread = ConfigParser.SafeConfigParser()
 		self.cfgread.optionxform = str # We need case-sensitive options
 		self.cfgread.readfp(defaults)
 
