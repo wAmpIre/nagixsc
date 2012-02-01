@@ -365,18 +365,34 @@ class Checkresults(object):
 		return (True, '')
 
 
-	def write_xml(self):
+	def write_xml(self, outfile=None, httpuser=None, httppasswd=None):
 		self.xml_from_dict()
 
-		if not self.options.get('outfile'):
+		# Maybe overwrite options
+		if not outfile:
+			outfile = self.options.get('outfile')
+		# Check for ANY outfile name
+		if not outfile:
 			return (False, 'No filename given!')
+
+		if outfile.startswith('http'):
+			# Maybe overwrite options
+			if not httpuser:
+				httpuser = self.options.get('httpuser')
+			if not httppasswd:
+				httppasswd = self.options.get('httppasswd')
+			# Check for ANY HTTP user/password
+			if not httpuser:
+				return (False, 'No HTTP user given!')
+			if not httppasswd:
+				return (False, 'No HTTP password given!')
 
 		self.xml_to_string()
 
-		if self.options['outfile'].startswith('http'):
-			(headers, body) = http.encode_multipart(self.xmlstring, self.options['httpuser'], self.options['httppasswd'])
+		if outfile.startswith('http'):
+			(headers, body) = http.encode_multipart(self.xmlstring, httpuser, httppasswd)
 			try:
-				response = urllib2.urlopen(urllib2.Request(self.options['outfile'], body, headers)).read()
+				response = urllib2.urlopen(urllib2.Request(outfile, body, headers)).read()
 			except urllib2.HTTPError, error:
 				return (False, str(error))
 			except urllib2.URLError, error:
@@ -390,17 +406,17 @@ class Checkresults(object):
 
 			return (True, response)
 
-		elif self.options['outfile'] == '-':
+		elif outfile == '-':
 			print parseString(self.xmlstring).toprettyxml(indent='  ')
 			return (True, 'Written XML to stdout')
 
 		else:
 			try:
-				self.xmldoc.write(self.options['outfile'], encoding='utf-8', **xmlwriteargs)
+				self.xmldoc.write(outfile, encoding='utf-8', **xmlwriteargs)
 			except IOError, error:
 				return (False, str(error))
 
-			return (True, 'Written XML to %s' % self.options['outfile'])
+			return (True, 'Written XML to %s' % outfile)
 
 
 	def dict2out_passive(self):
