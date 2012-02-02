@@ -75,7 +75,7 @@ host_analyzer = re.compile(host_analyzer, re.MULTILINE)
 def read_config_file_daemon(cfgread):
 	config = {}
 
-	for parm in ['spooldir', 'spooldir_new', 'spooldir_work', 'spooldir_done', 'spooldir_xml']:
+	for parm in ['spooldir', 'spooldir_new', 'spooldir_work', 'spooldir_done', 'spooldir_xml', 'pidfile']:
 		try:
 			config[parm] = cfgread.get('daemon', parm)
 		except ConfigParser.NoSectionError, ConfigParser.NoOptionError:
@@ -167,49 +167,6 @@ def read_obsess_file(filename):
 	return checks
 
 
-def old_read_obsess_file(filename):
-	checks = []
-	f = open(filename)
-	print 'Read ' + filename
-	count_lines = 0
-
-	for line in f:
-		if line.startswith('LASTSERVICECHECK'):
-			m = service_analyzer.match(line)
-			if m:
-				check = m.groupdict()
-				if check['longoutput']:
-					check['output'] += '\n' + check['longoutput']
-					check.pop('longoutput')
-				if check['perfdata']:
-					check['output'] += '|' + check['perfdata']
-					check.pop('perfdata')
-				checks.append(check)
-			else:
-				print 'FAIL_SRV: ' + line
-		elif line.startswith('LASTHOSTCHECK'):
-			m = host_analyzer.match(line)
-			if m:
-				check = m.groupdict()
-				check['service_description'] = None
-				if check['longoutput']:
-					check['output'] += '\n' + check['longoutput']
-					check.pop('longoutput')
-				if check['perfdata']:
-					check['output'] += '|' + check['perfdata']
-					check.pop('perfdata')
-				checks.append(check)
-			else:
-				print 'FAIL_HST: ' + line
-		else:
-			print 'FAIL: ' + line
-		count_lines += 1
-
-	print "Read %s lines" % count_lines
-	f.close()
-	return checks
-
-
 ##############################################################################
 
 def main():
@@ -259,7 +216,7 @@ def main():
 
 	# Daemonize
 	if options.daemon:
-		nagixsc.daemon.daemonize(pidfile=server.config_server['pidfile'])
+		nagixsc.daemon.daemonize(pidfile=config['pidfile'])
 
 	# Prepare
 	checkresults = nagixsc.Checkresults()
