@@ -312,8 +312,15 @@ def main():
 					overall_status = False
 
 			if overall_status:
-				for filename in files_done:
-					os.rename(os.path.join(config['spooldir_work'], filename), os.path.join(config['spooldir_done'], filename))
+				if config['keep_spoolfiles']:
+					for filename in files_done:
+						os.rename(os.path.join(config['spooldir_work'], filename), os.path.join(config['spooldir_done'], filename))
+				else:
+					for filename in files_done:
+						try:
+							os.unlink(os.path.join(config['spooldir_work'], filename))
+						except OSError:
+							pass
 				checkresults.checks = []
 				files_done = []
 
