@@ -128,6 +128,12 @@ class Checkresults(object):
 			return base64.b64decode(data)
 		elif encoding == 'plain':
 			return data
+		elif not encoding:
+			# Compatible with old versions
+			try:
+				return base64.b64decode(data)
+			except TypeError:
+				return data
 		else:
 			return None
 
