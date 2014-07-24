@@ -64,7 +64,7 @@ def main():
 	# New HTTP Server
 	server = nagixsc.http.NagixSC_HTTPServer(defaults=defaults4cfgfile)
 
-	# Commad line options
+	# Command line options
 	parser = optparse.OptionParser()
 
 	parser.add_option('-c', '', dest='cfgfile', help='Config file')
