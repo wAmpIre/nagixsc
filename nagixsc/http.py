@@ -420,7 +420,6 @@ class NagixSC_HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 		elif self.server.config_acceptor['mode'] == 'passive':
 			self.checkresults.options['pipe'] = self.server.config_acceptor['commandfile_path']
-			self.checkresults.options['pipe'] = '/dev/stdout'
 			datasink = 'command file'
 
 			(status, count_services, count_failed, response) = self.checkresults.dict2out_passive()
